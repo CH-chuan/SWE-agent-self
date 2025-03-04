@@ -1,0 +1,21 @@
+agent:
+  model:
+    name: openai/ollama/llama3.2:3b
+    api_base: https://litellmud.takin.ai
+    api_key: $LITELLM_PROXY_API_KEY
+    per_instance_cost_limit: 0
+    per_instance_call_limit: 20
+    temperature: 0.6
+    max_input_tokens: 64000
+  tools:
+    env_variables:
+      WINDOW: 100
+      OVERLAP: 2
+    bundles:
+      - path: tools/registry
+      - path: tools/defaults
+      - path: tools/search
+      - path: tools/edit_linting
+      - path: tools/submit
+    parse_function:
+      type: thought_action

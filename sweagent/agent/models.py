@@ -142,8 +142,11 @@ class GenericAPIModelConfig(PydanticBaseModel):
         if not api_key:
             return []
         if api_key.startswith("$"):
+            # print("*"*80)
             env_var_name = api_key[1:]
             api_key = os.getenv(env_var_name, "")
+            # print(env_var_name, api_key)
+            # print("*"*80)
             if not api_key:
                 get_logger("swea-config", emoji="🔧").warning(f"Environment variable {env_var_name} not set")
                 return []
@@ -167,6 +170,8 @@ class GenericAPIModelConfig(PydanticBaseModel):
         get_logger("config", emoji="🔧").debug(
             f"Choosing API key {key_idx} for thread {thread_name} (idx {thread_idx})"
         )
+        # print("*"*80)
+        # print("Finish choosing API key", api_keys[key_idx])
         return api_keys[key_idx]
 
     @property
