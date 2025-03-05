@@ -138,6 +138,7 @@ def problem_statement_from_simplified_input(
         type: The type of problem statement
     """
     if type == "text":
+        print("*"*100, "text problem statement is called", input)
         return TextProblemStatement(text=input)
     elif type == "text_file":
         return FileProblemStatement(path=Path(input))
