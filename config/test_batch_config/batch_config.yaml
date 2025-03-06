@@ -1,0 +1,6 @@
+instances:
+  type: expert_file  # when running your own files use run batch
+  path: config/batch_instances/test_batch_instances.yaml
+  slice: ":3"
+  shuffle: true
+# num__workers: 3 # if you want to speed up, running parallely

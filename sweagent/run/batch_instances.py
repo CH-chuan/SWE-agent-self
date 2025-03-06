@@ -179,6 +179,8 @@ class InstancesFromFile(BaseModel, AbstractInstanceSource):
 
     def get_instance_configs(self) -> list[BatchInstance]:
         instance_dicts = load_file(self.path)
+        print("*"*80)
+        print(instance_dicts)
         simple_instances = [SimpleBatchInstance.model_validate(instance_dict) for instance_dict in instance_dicts]
         instances = [instance.to_full_batch_instance(self.deployment) for instance in simple_instances]
         return _filter_batch_items(instances, filter_=self.filter, slice_=self.slice, shuffle=self.shuffle)

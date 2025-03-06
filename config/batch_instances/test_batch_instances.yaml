@@ -1,0 +1,11 @@
+- env:
+    deployment:
+      type: docker
+      image: python:3.11
+    repo:
+        type: github
+        github_url: "https://github.com/swe-agent/test-repo"
+  problem_statement:
+    type: text
+    text: "A simple test problem"
+    id: "simple_test_problem"
