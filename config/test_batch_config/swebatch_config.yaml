@@ -1,0 +1,7 @@
+instances:
+  type: swe_bench # when you run swe benches
+  subset: verified # full, or lite
+  split: test # or dev for development, but verified version only has test split
+  filter: .* # regrex used for filter the instances by instance id in swebench
+  slice: ":1" # after filter, only select like list[slice] instances
+  shuffle: true # randomize the instances (before filtering and slicing)

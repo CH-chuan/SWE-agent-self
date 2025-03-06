@@ -11,3 +11,9 @@ sweagent traj-to-demo /Users/chuan/Desktop/projects/SWE-agent/trajectories/chuan
 ```bash
 sweagent run-batch --config config/agent_config_litellmproxy.yaml --config config/test_batch_config/batch_config.yaml
 ```
+
+
+
+```bash
+sweagent run-batch --config config/agent_config_litellmproxy.yaml --config config/test_batch_config/swebatch_config.yaml
+```
