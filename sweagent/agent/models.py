@@ -670,10 +670,13 @@ class LiteLLMModel(AbstractModel):
                 n=n,
             )
         except litellm.exceptions.ContextWindowExceededError as e:
+            print("this error is raised due to context window exceeded")
             raise ContextWindowExceededError from e
         except litellm.exceptions.ContentPolicyViolationError as e:
+            print("this error is raised due to content policy violation")
             raise ContentPolicyViolationError from e
         except litellm.exceptions.BadRequestError as e:
+            print(f"this error is raised due to bad request, due to {e}")
             if "is longer than the model's context length" in str(e):
                 raise ContextWindowExceededError from e
             raise

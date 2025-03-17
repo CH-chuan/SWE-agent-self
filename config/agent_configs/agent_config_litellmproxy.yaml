@@ -6,7 +6,8 @@ agent:
     per_instance_cost_limit: 0
     per_instance_call_limit: 20
     temperature: 0.6
-    max_input_tokens: 64000
+    completion_kwargs:
+      max_tokens: 64000
   tools:
     env_variables:
       WINDOW: 100

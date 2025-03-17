@@ -7,6 +7,9 @@ agent:
     per_instance_cost_limit: 5
     per_instance_call_limit: 20
     temperature: 0.6
+    completion_kwargs:
+      extra_headers: 
+        'anthropic-beta': 'output-128k-2025-02-19'
   tools:
     env_variables:
       WINDOW: 100

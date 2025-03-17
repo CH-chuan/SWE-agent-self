@@ -1,0 +1,20 @@
+env:
+  repo:
+    github_url: https://github.com/SWE-agent/test-repo
+problem_statement:
+  github_url: https://github.com/SWE-agent/test-repo/issues/1
+  ########
+  # or by text
+  # text: |
+  #   I'm running missing_colon.py as follows:
+
+  #   division(23, 0)
+  #   but I get the following error:
+
+  #     File "/Users/fuchur/Documents/24/git_sync/swe-agent-test-repo/tests/./missing_colon.py", line 4
+  #       def division(a: float, b: float) -> float
+  #                                               ^
+  #   SyntaxError: invalid syntax
+  #######
+  # # or by file
+  # path: self_problem_statements/example_problem_statement.md
