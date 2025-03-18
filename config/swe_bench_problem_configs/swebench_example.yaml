@@ -5,5 +5,5 @@ instances:
   filter: ^(matplotlib__matplotlib-25122|scikit-learn__scikit-learn-14894)$ # regrex used for filter the instances by instance id in swebench
   slice: ":2" # after filter, only select like list[slice] instances
   shuffle: false # randomize the instances (before filtering and slicing)
-  evaluate: false # evaluate the instances
+  evaluate: true # evaluate the instances
 output_dir: trajectories/swebench_test

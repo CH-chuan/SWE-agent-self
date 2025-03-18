@@ -289,6 +289,7 @@ def run_instances(
         timeout (int): Timeout for running tests
     """
     client = docker.from_env()
+    # print("instances received: ", instances)
     test_specs = list(
         map(
             lambda instance: make_test_spec(
