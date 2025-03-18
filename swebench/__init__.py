@@ -1,8 +1,6 @@
 __version__ = "3.0.15"
 
-# from swebench.collect.build_dataset import main as build_dataset
-# from swebench.collect.get_tasks_pipeline import main as get_tasks_pipeline
-# from swebench.collect.print_pulls import main as print_pulls
+# Removed references to collect module which we don't need for evaluation
 
 from swebench.harness.constants import (
     KEY_INSTANCE_ID,
@@ -44,25 +42,13 @@ from swebench.harness.log_parsers import (
 )
 
 from swebench.harness.run_evaluation import (
+    run_instances,  # Export run_instances directly
     main as run_evaluation,
+    clean_images,  # Import clean_images from run_evaluation
 )
 
 from swebench.harness.utils import (
     run_threadpool,
-)
-
-from swebench.versioning.constants import (
-    MAP_REPO_TO_VERSION_PATHS,
-    MAP_REPO_TO_VERSION_PATTERNS,
-)
-
-from swebench.versioning.get_versions import (
-    get_version,
-    get_versions_from_build,
-    get_versions_from_web,
-    map_version_to_task_instances,
-)
-
-from swebench.versioning.utils import (
-    split_instances,
+    load_swebench_dataset,
+    EvaluationError,
 )

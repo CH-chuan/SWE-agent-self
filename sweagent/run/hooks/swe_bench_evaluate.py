@@ -18,6 +18,7 @@ from sweagent.utils.log import get_logger
 
 # new import for SWE-Bench
 from swebench.harness.run_evaluation import run_instances
+from swebench.harness.reporting import make_run_report
 from json import loads
 from swebench.harness.constants import KEY_PREDICTION, RUN_EVALUATION_LOG_DIR, LOG_REPORT
 
@@ -219,16 +220,12 @@ class SweBenchEvaluate(RunHook):
             self.logger.error(f"Traceback: {traceback_str}")
 
     def move_reports_from_log_dir(self, log_dir: Path, run_id: str) -> None:
-        """Find and move reports from the log directory to results.json."""
+        """Find and move reports from the log directory to results.json and create a summary report."""
         # The reports are stored in log_dir/run_id/model_name/instance_id/report.json
         run_dir = log_dir / run_id
         if not run_dir.exists():
             self.logger.warning(f"No SweBench reports found at {run_dir}")
             return
-            
-        # Remove existing results.json if it exists
-        results_path = self.output_dir / "results.json"
-        results_path.unlink(missing_ok=True)
         
         # Find all report.json files in the run directory
         reports = list(run_dir.glob(f"**/{LOG_REPORT}"))
@@ -245,13 +242,56 @@ class SweBenchEvaluate(RunHook):
                     report_data = loads(f.read())
                     # Extract instance_id from the path
                     instance_id = report_path.parent.name
-                    combined_results[instance_id] = report_data
+                    combined_results[instance_id] = report_data[instance_id]
             except Exception as e:
                 self.logger.warning(f"Failed to read report {report_path}: {e}")
-                
+        
+        # Create a summary report
+        summary_report = {}
+        submitted_instances = set()
+        completed_instances = set()
+        resolved_instances = set()
+        unresolved_instances = set()
+        for instance_id, report in combined_results.items():
+            if report["patch_is_None"]:
+                unresolved_instances.add(instance_id)
+            elif report["patch_successfully_applied"]:
+                resolved_instances.add(instance_id)
+            else:
+                unresolved_instances.add(instance_id)
+            submitted_instances.add(instance_id)
+            if report["patch_exists"]:
+                completed_instances.add(instance_id)
+        
+        summary_report["submitted_instances"] = list(submitted_instances)
+        summary_report["completed_instances"] = list(completed_instances)
+        summary_report["resolved_instances"] = list(resolved_instances)
+        summary_report["unresolved_instances"] = list(unresolved_instances)
+        
         # Write combined results to results.json
+        results_path = self.output_dir / "results.json"
         with open(results_path, 'w') as f:
             import json
             json.dump(combined_results, f, indent=2)
-            
+        # log where the results are written
         self.logger.info(f"Combined {len(reports)} reports into {results_path}")
+
+        # Write summary report to summary.json
+        summary_path = self.output_dir / "summary.json"
+        with open(summary_path, 'w') as f:
+            import json
+            json.dump(summary_report, f, indent=2)
+        # log where the summary is written
+        self.logger.info(f"Summary report written to {summary_path}")
+            
+        # Log the results
+        self.logger.info(f"Submitted {len(submitted_instances)} instances")
+        self.logger.info(f"Completed {len(completed_instances)} instances")
+        self.logger.info(f"Resolved {len(resolved_instances)} instances")
+        self.logger.info(f"Unresolved {len(unresolved_instances)} instances")
+        
+        # Log the instance IDs for each category
+        self.logger.info(f"Submitted instances: {', '.join(submitted_instances)}")
+        self.logger.info(f"Completed instances: {', '.join(completed_instances)}")
+        self.logger.info(f"Resolved instances: {', '.join(resolved_instances)}")
+        self.logger.info(f"Unresolved instances: {', '.join(unresolved_instances)}")

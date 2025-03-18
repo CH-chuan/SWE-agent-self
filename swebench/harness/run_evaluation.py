@@ -45,10 +45,6 @@ from swebench.harness.docker_build import (
 )
 from swebench.harness.grading import get_eval_report
 from swebench.harness.reporting import make_run_report
-from swebench.harness.modal_eval import (
-    run_instances_modal,
-    validate_modal_credentials,
-)
 from swebench.harness.test_spec.test_spec import make_test_spec, TestSpec
 from swebench.harness.utils import (
     EvaluationError,
@@ -453,7 +449,7 @@ def main(
     timeout: int,
     namespace: str | None,
     rewrite_reports: bool,
-    modal: bool,
+    modal: bool = False,
     instance_image_tag: str = "latest",
     report_dir: str = ".",
 ):
@@ -490,12 +486,8 @@ def main(
     full_dataset = load_swebench_dataset(dataset_name, split, instance_ids)
 
     if modal:
-        # run instances on Modal
-        if not dataset:
-            print("No instances to run.")
-        else:
-            validate_modal_credentials()
-            run_instances_modal(predictions, dataset, full_dataset, run_id, timeout)
+        # We don't support modal evaluation in this simplified version
+        print("Modal evaluation is not supported in this simplified version.")
         return
 
     # run instances locally

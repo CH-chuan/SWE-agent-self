@@ -8,6 +8,7 @@ data/**
 *.env
 !tools/*
 logs/*
+swebench_backup_20250318003000
 
 # -------- automatically generated files --------
 
