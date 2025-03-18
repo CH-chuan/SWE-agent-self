@@ -17,3 +17,7 @@ sweagent run-batch --config config/agent_config_litellmproxy.yaml --config confi
 ```bash
 sweagent run-batch --config config/agent_config_litellmproxy.yaml --config config/test_batch_config/swebatch_config.yaml
 ```
+
+```bash
+sweagent run-batch --config config/agent_configs/agent_config_claude.yaml --config config/test_batch_config/swebatch_config.yaml
+```

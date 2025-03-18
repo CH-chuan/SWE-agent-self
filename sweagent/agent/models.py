@@ -145,8 +145,8 @@ class GenericAPIModelConfig(PydanticBaseModel):
             # print("*"*80)
             env_var_name = api_key[1:]
             api_key = os.getenv(env_var_name, "")
-            print("*"*80)
-            print("The Api key we use name is: ", env_var_name)
+            # print("*"*80)
+            # print("The Api key we use name is: ", env_var_name)
             if not api_key:
                 get_logger("swea-config", emoji="🔧").warning(f"Environment variable {env_var_name} not set")
                 return []
@@ -653,9 +653,9 @@ class LiteLLMModel(AbstractModel):
         if self.lm_provider == "anthropic":
             completion_kwargs["max_tokens"] = self.model_max_output_tokens
         try:
-            print("*"*80)
-            print("Now we are going to call the completion function!")
-            print("check the config: ", self.config)
+            # print("*"*80)
+            # print("Now we are going to call the completion function!")
+            # print("check the config: ", self.config)
             # print("check the messages: ", messages)
             response: litellm.types.utils.ModelResponse = litellm.completion(  # type: ignore
                 model=self.config.name,
