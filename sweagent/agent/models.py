@@ -640,7 +640,7 @@ class LiteLLMModel(AbstractModel):
         self._sleep()
         input_tokens: int = litellm.utils.token_counter(messages=messages, model=self.config.name)
         # logging the number of tokens sent to the model
-        self.logger.debug(f"Input tokens: {input_tokens}")
+        self.logger.debug(f"Input tokens: {input_tokens}") #, for messages: {messages}")
         if self.model_max_input_tokens is None:
             msg = (
                 f"No max input tokens found for model {self.config.name!r}. "
@@ -660,6 +660,19 @@ class LiteLLMModel(AbstractModel):
         completion_kwargs = self.config.completion_kwargs
         if self.lm_provider == "anthropic":
             completion_kwargs["max_tokens"] = self.model_max_output_tokens
+        # print input before sending to model
+        # self.logger.debug(f"name: {self.config.name}")
+        # # self.logger.debug(f"messages: {messages}")
+        # self.logger.debug(f"temperature: {self.config.temperature}")
+        # self.logger.debug(f"top_p: {self.config.top_p}")
+        # self.logger.debug(f"api_version: {self.config.api_version}")
+        # self.logger.debug(f"api_key: {self.config.api_key}")
+        # self.logger.debug(f"fallbacks: {self.config.fallbacks}")
+        # self.logger.debug(f"completion_kwargs: {completion_kwargs}")
+        # self.logger.debug(f"extra_args: {extra_args}")
+        # self.logger.debug(f"n: {n}")
+        # self.logger.debug(f"self.config: {self.config}")
+
         try:
             response: litellm.types.utils.ModelResponse = litellm.completion(  # type: ignore
                 model=self.config.name,
