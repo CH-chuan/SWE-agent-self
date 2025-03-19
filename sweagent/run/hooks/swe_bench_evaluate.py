@@ -264,6 +264,13 @@ class SweBenchEvaluate(RunHook):
             if report["patch_exists"]:
                 completed_instances.add(instance_id)
         
+        summary_report["metrics"] = {
+            "submitted_instances": len(submitted_instances),
+            "completed_instances": len(completed_instances),
+            "resolved_instances": len(resolved_instances),
+            "unresolved_instances": len(unresolved_instances),
+        }
+
         summary_report["submitted_instances"] = list(submitted_instances)
         summary_report["completed_instances"] = list(completed_instances)
         summary_report["resolved_instances"] = list(resolved_instances)
