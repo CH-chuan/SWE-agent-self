@@ -170,7 +170,7 @@ class SweBenchEvaluate(RunHook):
                     pred_data[KEY_PREDICTION] = pred_data.pop("model_prediction")
                 
                 predictions[instance_id] = pred_data
-            print(predictions.keys())  # Debugging
+            # print(predictions.keys())  # Debugging
             # Set up parameters for run_instances
             dataset_name = self._SUBSET_MAP[self.subset]
             split = self.split

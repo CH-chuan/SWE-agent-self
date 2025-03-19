@@ -639,6 +639,8 @@ class LiteLLMModel(AbstractModel):
     ) -> list[dict]:
         self._sleep()
         input_tokens: int = litellm.utils.token_counter(messages=messages, model=self.config.name)
+        # logging the number of tokens sent to the model
+        self.logger.debug(f"Input tokens: {input_tokens}")
         if self.model_max_input_tokens is None:
             msg = (
                 f"No max input tokens found for model {self.config.name!r}. "
