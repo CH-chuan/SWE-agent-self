@@ -69,7 +69,6 @@ class SweBenchEvaluate(RunHook):
                 self._running_calls.remove(call)
 
     # used for continuous submission, i.e. continuously evaluate predictions
-    # TODO: Implement the following (only support evaluation at the end of the run currently)
     def on_instance_completed(self, *, result: AgentRunResult):
         if self.evaluation_interval == 0:
             return
@@ -82,18 +81,14 @@ class SweBenchEvaluate(RunHook):
             merge_predictions([self.output_dir], self.output_dir / "tmppreds.json")
             self.last_evaluation_time = current_time
         
-        # TODO: Implement the following
-        # now we have the predictions, we can modify to evaluate it
-        # instead of submitting the predictions, we will run through local evaluation process
-        print("Evaluating predictions with file {}".format(self.output_dir / "tmppreds.json"))
-
-        # self._running_calls.append(
-        #     subprocess.Popen(
-        #         self._get_sb_call(preds_path=self.output_dir / "tmppreds.json", submit_only=True),
-        #         stdout=subprocess.PIPE,
-        #         stderr=subprocess.PIPE,
-        #     )
-        # )
+        # Run local evaluation on the temporary predictions file
+        tmp_preds_path = self.output_dir / "tmppreds.json"
+        print(f"Evaluating predictions with file {tmp_preds_path}")
+        self.run_local_evaluation(tmp_preds_path)
+        
+        # Remove temporary predictions file after evaluation
+        if tmp_preds_path.exists():
+            tmp_preds_path.unlink()
 
     def move_sb_cli_report(self) -> None:
         """Move report from `sb-cli-reports` to `results.json`."""
@@ -153,6 +148,16 @@ class SweBenchEvaluate(RunHook):
             self.logger.error(f"Predictions file not found at {preds_path}")
             return
             
+        self.run_local_evaluation(preds_path)
+
+    def run_local_evaluation(self, preds_path: Path) -> None:
+        """Run local evaluation on the predictions file.
+        
+        This method can be called from both on_end and on_instance_completed.
+        
+        Args:
+            preds_path: Path to the predictions file
+        """
         try:
             # Load predictions from file
             with open(preds_path, 'r') as f:
@@ -207,10 +212,6 @@ class SweBenchEvaluate(RunHook):
                 rewrite_reports=False
             )
             
-            # Remove temporary predictions if they exist
-            if (self.output_dir / "tmppreds.json").exists():
-                (self.output_dir / "tmppreds.json").unlink()
-                
             # Find and move reports from the RUN_EVALUATION_LOG_DIR to results.json
             self.move_reports_from_log_dir(RUN_EVALUATION_LOG_DIR, run_id)
             
