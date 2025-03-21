@@ -202,9 +202,9 @@ class SweBenchEvaluate(RunHook):
                 predictions=predictions,
                 instances=instances,
                 cache_level="instance",  # Default cache level
-                clean=False,            # Don't clean images
-                force_rebuild=False,    # Don't force rebuild
-                max_workers=4,          # Use 4 workers by default
+                clean=True,            # Clean images above the cache level after evaluation
+                force_rebuild=True,    # Force rebuild
+                max_workers=2,          # Use 2 workers by default
                 run_id=run_id,
                 timeout=600,            # 10 minute timeout
                 namespace="swebench",
@@ -253,28 +253,51 @@ class SweBenchEvaluate(RunHook):
         completed_instances = set()
         resolved_instances = set()
         unresolved_instances = set()
+        empty_patch_instances = set()
+        error_instances = set()
+        unstopped_instances = set()  # This should always be 0 in our implementation
+        
+        # Total instances is the number of instances in the dataset
+        # For verified dataset, it's 500
+        total_instances = len(instances)  # Using the instances loaded earlier
+        
         for instance_id, report in combined_results.items():
-            if report["patch_is_None"]:
-                unresolved_instances.add(instance_id)
-            elif report["patch_successfully_applied"]:
-                resolved_instances.add(instance_id)
-            else:
-                unresolved_instances.add(instance_id)
+            # All instances in combined_results were submitted
             submitted_instances.add(instance_id)
-            if report["patch_exists"]:
-                completed_instances.add(instance_id)
+            
+            if report["patch_is_None"] or not report["patch_exists"]:
+                # Instances that do not successfully generate patch
+                empty_patch_instances.add(instance_id)
+            elif not report["patch_successfully_applied"]:
+                # Instances that generated patch but cannot apply to codebase
+                error_instances.add(instance_id)
+            elif report["patch_successfully_applied"] and report["resolved"]:
+                # Instances that successfully applied patch and resolved issues
+                resolved_instances.add(instance_id)
+                completed_instances.add(instance_id)  # These are also completed
+            elif report["patch_successfully_applied"] and not report["resolved"]:
+                # Instances that successfully applied patch but didn't resolve issues
+                unresolved_instances.add(instance_id)
+                completed_instances.add(instance_id)  # These are also completed
         
         summary_report["metrics"] = {
+            "total_instances": total_instances,
             "submitted_instances": len(submitted_instances),
             "completed_instances": len(completed_instances),
             "resolved_instances": len(resolved_instances),
             "unresolved_instances": len(unresolved_instances),
+            "empty_patch_instances": len(empty_patch_instances),
+            "error_instances": len(error_instances),
+            "unstopped_instances": len(unstopped_instances),
         }
 
         summary_report["submitted_instances"] = list(submitted_instances)
         summary_report["completed_instances"] = list(completed_instances)
         summary_report["resolved_instances"] = list(resolved_instances)
         summary_report["unresolved_instances"] = list(unresolved_instances)
+        summary_report["empty_patch_instances"] = list(empty_patch_instances)
+        summary_report["error_instances"] = list(error_instances)
+        summary_report["unstopped_instances"] = list(unstopped_instances)
         
         # Write combined results to results.json
         results_path = self.output_dir / "results.json"
