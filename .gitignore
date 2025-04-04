@@ -9,6 +9,7 @@ data/**
 !tools/*
 logs/*
 swebench_backup_20250318003000
+example_instance
 
 # -------- automatically generated files --------
 

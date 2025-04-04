@@ -234,7 +234,8 @@ class SweBenchEvaluate(RunHook):
         if not reports:
             self.logger.warning(f"No SweBench reports found in {run_dir}")
             return
-            
+        
+        total_instances = 0
         # Combine all reports into a single results file
         combined_results = {}
         for report_path in reports:
@@ -244,6 +245,7 @@ class SweBenchEvaluate(RunHook):
                     # Extract instance_id from the path
                     instance_id = report_path.parent.name
                     combined_results[instance_id] = report_data[instance_id]
+                    total_instances += 1
             except Exception as e:
                 self.logger.warning(f"Failed to read report {report_path}: {e}")
         
@@ -256,10 +258,6 @@ class SweBenchEvaluate(RunHook):
         empty_patch_instances = set()
         error_instances = set()
         unstopped_instances = set()  # This should always be 0 in our implementation
-        
-        # Total instances is the number of instances in the dataset
-        # For verified dataset, it's 500
-        total_instances = len(instances)  # Using the instances loaded earlier
         
         for instance_id, report in combined_results.items():
             # All instances in combined_results were submitted

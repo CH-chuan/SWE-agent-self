@@ -247,7 +247,7 @@ def get_eval_report(
     }
 
     # Check if the model patch exists
-    if prediction[KEY_PREDICTION] is None:
+    if prediction[KEY_PREDICTION] is None or prediction[KEY_PREDICTION] == "":
         report_map[instance_id]["patch_is_None"] = True
         return report_map
     report_map[instance_id]["patch_exists"] = True
