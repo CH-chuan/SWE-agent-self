@@ -12,22 +12,6 @@ agent:
       retries: 5
       min_wait: 1
       max_wait: 120
-  tools:
-    env_variables:
-      WINDOW: 100
-      OVERLAP: 2
-    bundles:
-      - path: tools/registry
-      - path: tools/defaults
-      - path: tools/search
-      - path: tools/edit_replace
-      - path: tools/submit
-    enable_bash_tool: true
-    parse_function:
-      type: function_calling
-  history_processors:
-    - type: last_n_observations
-      n: 5
   templates:
     system_template: |-
       SETTING: You are an autonomous programmer, and you're working directly in the command line with a special interface.
@@ -136,3 +120,20 @@ agent:
     demonstrations:
       - trajectories/demonstrations/replay__marshmallow-code__marshmallow-1867__function_calling_replace__install-1/marshmallow-code__marshmallow-1867.traj
     put_demos_in_history: true
+  tools:
+    env_variables:
+      WINDOW: 100
+      OVERLAP: 2
+    bundles:
+      - path: tools/registry
+      - path: tools/defaults
+      - path: tools/search
+      # - path: tools/edit_linting
+      - path: tools/edit_replace
+      - path: tools/submit
+    enable_bash_tool: true
+    parse_function:
+      type: function_calling
+  history_processors:
+    - type: last_n_observations
+      n: 5
