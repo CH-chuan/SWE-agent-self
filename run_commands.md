@@ -15,13 +15,14 @@ sweagent run-batch \
 ```bash
 sweagent run-batch \
     --config config/agent_configs/azure_4omini_example.yaml \
-    --config config/swe_bench_problem_configs/swebench_example.yaml
+    --config config/swe_bench_problem_configs/swebench_example.yaml \
+    --output_dir trajectories/swebench_test
 ```
 
 ```bash
 sweagent run-batch \
     --config config/agent_configs/azure_4o_example.yaml \
-    --config config/swe_bench_problem_configs/swebench_example.yaml
+    --config config/swe_bench_problem_configs/swebench_example.yaml 
 ```
 
 ```bash

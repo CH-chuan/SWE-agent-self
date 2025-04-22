@@ -147,11 +147,11 @@ def load_swebench_dataset(
         }:
             name = "princeton-nlp/SWE-bench_Lite"
         elif name.lower() in {
-            "swe-bench_verified",
-            "swebench_verified",
+            "swe-bench-verified",
+            "swebench-verified",
             "swe_bench_verified",
             "swe-bench_verified",
-            "verified"
+            "verified",
         }:
             name = "princeton-nlp/SWE-bench_Verified"
         if (Path(name) / split / "dataset_info.json").exists():

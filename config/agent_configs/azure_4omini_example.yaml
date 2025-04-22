@@ -3,9 +3,9 @@ agent:
     name: azure/gpt-4o-mini
     api_base: https://takin-research.openai.azure.com/openai/deployments/gpt-4o-mini/chat/completions?api-version=2024-10-21
     api_key: $azure_4o_mini_API_KEY
-    per_instance_cost_limit: 0.05
-    per_instance_call_limit: 20
-    temperature: 0.6
+    per_instance_cost_limit: 0.01
+    per_instance_call_limit: 10
+    temperature: 0.3
     # completion_kwargs:
     #   max_tokens: 64000 # due to azure, it should lower than your per minute token rate limit
     retry:
