@@ -15,8 +15,8 @@ nohup sweagent run-batch-team \
 sweagent run-batch-team \
     --agent_config_paths config/experiment_config_pair_agents/azure_4o_baseline_driver.yaml \
     --agent_config_paths config/experiment_config_pair_agents/azure_4o_baseline_navigator.yaml \
-    --config config/experiment_config_pair_agents/swebench_tasks.yaml \
-    --output_dir trajectories/experiment_team/4o_baseline
+    --config config/swe_bench_problem_configs/swebench_example.yaml \
+    --output_dir trajectories/test_one_case
 ```
 
 ## Test with human as agent
