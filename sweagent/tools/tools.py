@@ -12,7 +12,7 @@ from typing_extensions import Self
 
 from sweagent.environment.swe_env import SWEEnv
 from sweagent.tools.bundle import Bundle
-from sweagent.tools.commands import BASH_COMMAND, Command
+from sweagent.tools.commands import BASH_COMMAND, HANDOFF_COMMAND, Command
 from sweagent.tools.parsing import FunctionCallingParser, JsonParser, ParseFunction
 from sweagent.tools.utils import _guard_multiline_input, generate_command_docs
 from sweagent.utils.log import get_logger
@@ -73,6 +73,7 @@ class ToolConfig(BaseModel):
     parse_function: ParseFunction = Field(default_factory=FunctionCallingParser)
 
     enable_bash_tool: bool = True
+    enable_handoff_tool: bool = False
 
     format_error_template: str = None  # type: ignore
     """Defaults to format_error_template in ParseFunction"""
@@ -123,6 +124,11 @@ class ToolConfig(BaseModel):
         if self.enable_bash_tool:
             commands.append(BASH_COMMAND)
             tool_sources[BASH_COMMAND.name] = Path("<builtin>")
+            
+        # Add handoff command if enabled
+        if self.enable_handoff_tool:
+            commands.append(HANDOFF_COMMAND)
+            tool_sources[HANDOFF_COMMAND.name] = Path("<builtin>")
 
         # Collect commands from all bundles
         for bundle in self.bundles:
@@ -153,11 +159,17 @@ class ToolConfig(BaseModel):
         }
         self.tools
 
-        # assert not self.enable_bash_tool and parse_function is FunctionCallingParser or JsonParser
+        # Validate that tool disabling only happens with supported parsers
         if not self.enable_bash_tool and not (
             isinstance(self.parse_function, FunctionCallingParser) or isinstance(self.parse_function, JsonParser)
         ):
             msg = f"Bash tool can only be disabled if {FunctionCallingParser.type} parser or {JsonParser.type} parser is used."
+            raise ValueError(msg)
+            
+        if not self.enable_handoff_tool and not (
+            isinstance(self.parse_function, FunctionCallingParser) or isinstance(self.parse_function, JsonParser)
+        ):
+            msg = f"Handoff tool can only be disabled if {FunctionCallingParser.type} parser or {JsonParser.type} parser is used."
             raise ValueError(msg)
 
         self.multi_line_command_endings = multi_line_command_endings

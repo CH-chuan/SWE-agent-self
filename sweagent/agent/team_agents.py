@@ -290,6 +290,19 @@ class Team(AbstractAgent):
         Returns:
             True if handoff was requested, False otherwise
         """
+        # Get the current agent
+        current_agent = self.agents[self.current_agent_idx]
+        
+        # Check if handoff is enabled for this agent
+        handoff_enabled = True
+        if hasattr(current_agent, 'config') and hasattr(current_agent.config, 'tools'):
+            handoff_enabled = getattr(current_agent.config.tools, 'enable_handoff_tool', True)
+            
+        # If handoff is disabled for this agent, always return False
+        if not handoff_enabled:
+            self.logger.debug(f"Handoff tool is disabled for agent {current_agent.name}")
+            return False
+        
         # Check if there are any tool calls in the step_output
         # Handle both dictionary and object types for step_output
         tool_calls = None
@@ -303,10 +316,27 @@ class Team(AbstractAgent):
         if not tool_calls:
             return False
             
-        # Look for a handoff tool call
+        # Look for a handoff tool call - now the handoff tool is properly registered
+        # so we just need to check if it was used
         for tool_call in tool_calls:
             if tool_call.get("name", "").lower() == "handoff":
-                self.logger.info(f"Agent {self.agents[self.current_agent_idx].name} requested handoff")
+                message = ""
+                # Extract the handoff message if provided
+                try:
+                    if isinstance(tool_call.get("arguments"), dict):
+                        message = tool_call.get("arguments", {}).get("message", "")
+                    elif isinstance(tool_call.get("arguments"), str):
+                        # Try to parse JSON string arguments
+                        import json
+                        args = json.loads(tool_call.get("arguments", "{}"))
+                        message = args.get("message", "")
+                except Exception:
+                    pass  # Ignore parsing errors
+                
+                if message:
+                    self.logger.info(f"Agent {current_agent.name} requested handoff with message: {message}")
+                else:
+                    self.logger.info(f"Agent {current_agent.name} requested handoff")
                 return True
                 
         return False

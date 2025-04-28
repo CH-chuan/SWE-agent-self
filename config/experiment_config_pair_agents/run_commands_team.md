@@ -19,6 +19,15 @@ sweagent run-batch-team \
     --output_dir trajectories/experiment_team/4o_baseline
 ```
 
+## Test with human as agent
+```bash
+sweagent run-batch-team \
+    --agent_config_paths config/human.yaml \
+    --agent_config_paths config/human.yaml \
+    --config config/experiment_config_pair_agents/swebench_tasks.yaml \
+    --output_dir trajectories/experiment_team/human
+```
+
 # Test Running Benchmark
 ```bash
 sweagent run-batch \

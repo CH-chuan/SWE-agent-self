@@ -214,3 +214,18 @@ BASH_COMMAND = Command(
         )
     ],
 )
+
+# Handoff tool for team agents
+HANDOFF_COMMAND = Command(
+    name="handoff",
+    signature="<message>",
+    docstring="Pass control to the next agent in the team rotation",
+    arguments=[
+        Argument(
+            name="message",
+            type="string",
+            description="Optional message to pass to the next agent explaining the handoff reason.",
+            required=False,
+        )
+    ],
+)

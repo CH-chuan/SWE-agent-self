@@ -61,20 +61,21 @@ agent:
     demonstrations:
       - trajectories/demonstrations/replay__marshmallow-code__marshmallow-1867__function_calling_replace__install-1/marshmallow-code__marshmallow-1867.traj
     put_demos_in_history: true
-  # tools:
-  #   env_variables:
-  #     WINDOW: 100
-  #     OVERLAP: 2
-  #   bundles:
-  #     # - path: tools/registry
-  #     # - path: tools/defaults
-  #     # - path: tools/search
-  #     # # - path: tools/edit_linting
-  #     # - path: tools/edit_replace
-  #     # - path: tools/submit
-  #   enable_bash_tool: true
-  #   parse_function:
-  #     type: function_calling
+  tools:
+    env_variables:
+      WINDOW: 100
+      OVERLAP: 2
+    bundles:
+      - path: tools/registry
+      - path: tools/defaults
+      - path: tools/search
+      # - path: tools/edit_linting
+      - path: tools/edit_replace
+      - path: tools/submit
+    enable_bash_tool: true
+    enable_handoff_tool: true
+    parse_function:
+      type: function_calling
   history_processors:
     - type: last_n_observations
       n: 5
