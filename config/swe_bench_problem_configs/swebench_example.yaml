@@ -3,7 +3,6 @@ instances:
   subset: verified # full, or lite
   split: test # or dev for development, but verified version only has test split
   filter: ^(matplotlib__matplotlib-24149|sympy__sympy-17630)$ # regrex used for filter the instances by instance id in swebench
-  slice: ":2" # after filter, only select like list[slice] instances
+  slice: ":1" # after filter, only select like list[slice] instances
   shuffle: false # randomize the instances (before filtering and slicing)
   evaluate: true # evaluate the instances
-output_dir: trajectories/swebench_test_human

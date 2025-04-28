@@ -47,6 +47,9 @@ except ImportError:
 
 litellm.suppress_debug_info = True
 
+# support langfuse
+litellm.success_callback = ["langfuse"]
+litellm.failure_callback = ["langfuse"] # logs errors to langfuse
 
 _THREADS_THAT_USED_API_KEYS = []
 """Keeps track of thread orders so that we can choose the same API key for the same thread."""
@@ -686,6 +689,14 @@ class LiteLLMModel(AbstractModel):
                 **completion_kwargs,
                 **extra_args,
                 n=n,
+                metadata={
+                    "generation_name": "test-generation",   # set langfuse Generation Name
+                    "generation_id": "gen-id",              # set langfuse Generation ID
+                    "trace_id": "trace-id",                 # set langfuse Trace ID
+                    "trace_user_id": "user-id",             # set langfuse Trace User ID
+                    "session_id": "session-id",             # set langfuse Session ID
+                    "tags": ["tag1", "tag2"]                # set langfuse Tags
+                    },
             )
         except litellm.exceptions.ContextWindowExceededError as e:
             raise ContextWindowExceededError from e

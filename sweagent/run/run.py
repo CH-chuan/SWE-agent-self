@@ -12,6 +12,7 @@ Display usage instructions for a specific command:
 
 [bold][green]run[/green][/bold] or [bold][green]r[/green][/bold]: Run swe-agent on a single problem statement, for example a github issue.
 [bold][green]run-batch[/green][/bold] or [bold][green]b[/green][/bold]: Run swe-agent on a batch of problem statements, e.g., on SWE-Bench.
+[bold][green]run-batch-team[/green][/bold] or [bold][green]bt[/green][/bold]: Run a team of agents on a batch of problem statements, with each agent configured from a separate YAML file.
 
 [cyan][bold]=== MISC SUBCOMMANDS ===[/bold][/cyan]
 
@@ -40,6 +41,7 @@ def get_cli():
         choices=[
             "run",
             "run-batch",
+            "run-batch-team",
             "run-replay",
             "traj-to-demo",
             "run-api",
@@ -48,6 +50,7 @@ def get_cli():
             "inspector",
             "r",
             "b",
+            "bt",
             "i",
             "I",
             "extract-pred",
@@ -89,6 +92,10 @@ def main(args: list[str] | None = None):
         from sweagent.run.run_batch import run_from_cli as run_batch_main
 
         run_batch_main(remaining_args)
+    elif command in ["run-batch-team", "bt"]:
+        from sweagent.run.run_batch_team import run_team_from_cli as run_batch_team_main
+
+        run_batch_team_main(remaining_args)
     elif command == "run-replay":
         from sweagent.run.run_replay import run_from_cli as run_replay_main
 

@@ -1,8 +1,10 @@
 # Test Running Single Task
 ```bash
-sweagent run \
-    --config config/agent_configs/azure_4omini_example.yaml \
-    --config config/single_problem_configs/test_problem_config.yaml
+sweagent run-batch-team \
+    --agent_config_paths config/experiment_config_pair_agents/azure_4omini_baseline_driver.yaml \
+    --agent_config_paths config/experiment_config_pair_agents/azure_4omini_baseline_navigator.yaml \
+    --config config/swe_bench_problem_configs/swebench_example.yaml \
+    --output_dir trajectories/swebench_test_team
 ```
 
 # Test Running Benchmark

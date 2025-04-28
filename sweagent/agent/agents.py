@@ -146,6 +146,21 @@ class DefaultAgentConfig(BaseModel):
     formatting error, a blocked action, or a bash syntax error.
     """
     action_sampler: ActionSamplerConfig | None = None
+    
+    share_only_tool_results: bool = False
+    """If True, when this agent is used in a team, only tool results will be shared with other agents, 
+    not the agent's thoughts or reasoning. This helps protect the agent's context and thinking process.
+    """
+    
+    max_consecutive_turns: int = 3
+    """Maximum number of consecutive turns this agent can take when used in a team before handing off to another agent.
+    This allows for agent-specific turn limits in team settings.
+    """
+    
+    not_using_tools: bool = False
+    """If True, this agent does not use tool calls. This is useful for agents like navigators that should
+    not send empty tool_calls arrays to the model, which can cause issues with some models.
+    """
 
     type: Literal["default"] = "default"
 
@@ -416,11 +431,17 @@ class DefaultAgent(AbstractAgent):
         _catch_errors: bool = True,
         _always_require_zero_exit_code: bool = False,
         action_sampler_config: ActionSamplerConfig | None = None,
+        # Team-specific parameters
+        max_consecutive_turns: int = 3,
+        share_only_tool_results: bool = False,
+        **kwargs,  # Accept any other keyword arguments and ignore them
     ):
         """The agent handles the behaviour of the model and how it interacts with the environment.
 
         To run the agent, either call `self.run` or `self.setup` and then `self.step` in a loop.
         """
+
+        # agent attributes
         self._catch_errors = _catch_errors
         self._always_require_zero_exit_code = _always_require_zero_exit_code
         self.name = name
@@ -434,7 +455,22 @@ class DefaultAgent(AbstractAgent):
         self.history_processors = history_processors
         self.max_requeries = max_requeries
         self.logger = get_logger("swea-agent", emoji="🤠")
-        # Set in run method
+        self._action_sampler: AbstractActionSampler | None = None
+        if action_sampler_config is not None:
+            self._action_sampler = action_sampler_config.get(self.model, self.tools)
+        #: Count how many timeout errors have occurred consecutively. Kills agent
+        #: after 5 of them.
+        self._n_consecutive_timeouts = 0
+        self._total_execution_time = 0.0
+        
+        # Team-specific attributes
+        self.max_consecutive_turns = max_consecutive_turns
+        self.share_only_tool_results = share_only_tool_results
+        # Flag for agents that don't use tool calls
+        # Check the config first, then fall back to the name-based check for backward compatibility
+        self.not_using_tools = kwargs.get('not_using_tools', False) or 'navigator' in name.lower()
+
+        # Run specific attributes
         self._env: SWEEnv | None = None
         self._problem_statement: ProblemStatement | ProblemStatementConfig | None = None
         self.traj_path: Path | None = None
@@ -452,14 +488,6 @@ class DefaultAgent(AbstractAgent):
         It can be used to replay the agent's trajectory in an environment.
         """
 
-        self._action_sampler: AbstractActionSampler | None = None
-        if action_sampler_config is not None:
-            self._action_sampler = action_sampler_config.get(self.model, self.tools)
-
-        #: Count how many timeout errors have occurred consecutively. Kills agent
-        #: after 5 of them.
-        self._n_consecutive_timeouts = 0
-        self._total_execution_time = 0.0
 
     @classmethod
     def from_config(cls, config: DefaultAgentConfig) -> Self:
@@ -474,6 +502,10 @@ class DefaultAgent(AbstractAgent):
             model=model,
             max_requeries=config.max_requeries,
             action_sampler_config=config.action_sampler,
+            name=config.name,  # Pass the name from the config
+            max_consecutive_turns=config.max_consecutive_turns,
+            share_only_tool_results=config.share_only_tool_results,
+            not_using_tools=config.not_using_tools  # Pass the not_using_tools flag from config
         )
 
     def add_hook(self, hook: AbstractAgentHook) -> None:
@@ -658,7 +690,9 @@ class DefaultAgent(AbstractAgent):
             "agent": self.name,
             "message_type": "observation",
         }
-        if tool_call_ids:
+        # Only add tool_call_ids for agents that use tools (not navigator)
+        # and only if tool_call_ids is non-empty
+        if tool_call_ids and (not hasattr(self, 'not_using_tools') or not self.not_using_tools):
             assert len(tool_call_ids) == 1, "This should be ensured by the FunctionCalling parse method"
             history_item["role"] = "tool"
             history_item["tool_call_ids"] = tool_call_ids
@@ -666,18 +700,27 @@ class DefaultAgent(AbstractAgent):
 
     def add_step_to_history(self, step: StepOutput) -> None:
         """Adds a step (command that was run and output) to the model history"""
-        self._append_history(
-            {
-                "role": "assistant",
-                "content": step.output,
-                "thought": step.thought,
-                "action": step.action,
-                "agent": self.name,
-                "tool_calls": step.tool_calls,
-                "message_type": "action",
-            },
-        )
+        # Create the base history item
+        history_item = {
+            "role": "assistant",
+            "content": step.output,
+            "thought": step.thought,
+            "action": step.action,
+            "agent": self.name,
+            "message_type": "action",
+        }
+        
+        # Only add tool_calls for agents that use tools (not navigator)
+        # or if the step explicitly has non-empty tool_calls
+        if (not hasattr(self, 'not_using_tools') or not self.not_using_tools) and hasattr(step, 'tool_calls') and step.tool_calls:
+            history_item["tool_calls"] = step.tool_calls
+            
+        self._append_history(history_item)
 
+        # For not_using_tools agents with empty observation, skip adding observation to history
+        if hasattr(self, 'not_using_tools') and self.not_using_tools and (not hasattr(step, 'observation') or not step.observation.strip()):
+            return
+            
         elided_chars = 0
         if step.observation.strip() == "":
             # Show no output template if observation content was empty
@@ -689,13 +732,25 @@ class DefaultAgent(AbstractAgent):
         else:
             # Show standard output template if there is observation content
             templates = [self.templates.next_step_template]
+        # Create kwargs for _add_templated_messages_to_history with safe attribute access
+        kwargs = {
+            "observation": step.observation,
+            "elided_chars": elided_chars,
+            "max_observation_length": self.templates.max_observation_length,
+        }
+        
+        # Add state if it exists
+        if hasattr(step, 'state'):
+            kwargs.update(step.state)
+        
+        # Only add tool_call_ids if it exists and we're using tools
+        if (hasattr(step, 'tool_call_ids') and getattr(step, 'tool_call_ids', None) and
+            (not hasattr(self, 'not_using_tools') or not self.not_using_tools)):
+            kwargs["tool_call_ids"] = step.tool_call_ids
+            
         self._add_templated_messages_to_history(
             templates,
-            observation=step.observation,
-            elided_chars=elided_chars,
-            max_observation_length=self.templates.max_observation_length,
-            tool_call_ids=step.tool_call_ids,
-            **step.state,
+            **kwargs
         )
 
     def add_instance_template_to_history(self, state: dict[str, str]) -> None:
@@ -987,15 +1042,38 @@ class DefaultAgent(AbstractAgent):
                 # todo: Handle history and trajectory
                 step.extra_info.update(best.extra_info)
             else:
+                ####### This is where the model is called #########
                 output = self.model.query(history)  # type: ignore
             step.output = output["message"]
-            # todo: Can't I override the parser in __init__?
-            step.thought, step.action = self.tools.parse_actions(output)
-            if output.get("tool_calls") is not None:
-                step.tool_call_ids = [call["id"] for call in output["tool_calls"]]
-                step.tool_calls = output["tool_calls"]
+            
+            # Special handling for agents like navigator that don't use tool calls
+            if self.not_using_tools:
+                # For agents that aren't supposed to use tool calls, treat their entire output as thought
+                step.thought = step.output
+                step.action = ""  # Empty action since these agents don't perform actions
+                step.tool_call_ids = []
+                step.tool_calls = []
+            else:
+                # Regular flow for agents that use tool calls
+                # todo: Can't I override the parser in __init__?
+                step.thought, step.action = self.tools.parse_actions(output)
+                if output.get("tool_calls") is not None:
+                    step.tool_call_ids = [call["id"] for call in output["tool_calls"]]
+                    step.tool_calls = output["tool_calls"]
+            
+            # Log the thought and action for all agents
             self.logger.info(f"💭 THOUGHT\n{step.thought}\n\n🎬 ACTION\n{step.action.strip()}")
             self._chook.on_actions_generated(step=step)
+            
+            # For not_using_tools agents, skip handle_action and just return the step
+            if self.not_using_tools:
+                # Set necessary fields for a completed step
+                step.observation = ""
+                # Don't capture state from environment to avoid logging state info
+                step.state = {}
+                return step
+                
+            # For normal agents, execute the action
             return self.handle_action(step)
         except Exception as e:
             if step.action == step.thought == "":
@@ -1194,6 +1272,8 @@ class DefaultAgent(AbstractAgent):
 
         n_step = len(self.trajectory) + 1
         self.logger.info("=" * 25 + f" STEP {n_step} " + "=" * 25)
+        ####### This is the actual step where the agent queries the model #########
+        # Forward with handling
         step_output = self.forward_with_handling(self.messages)
         self.add_step_to_history(step_output)
 
