@@ -22,9 +22,9 @@ sweagent run-batch-team \
 ## Test with human as agent
 ```bash
 sweagent run-batch-team \
-    --agent_config_paths config/handoff_tester1.yaml \
+    --agent_config_paths config/handoff_tester.yaml \
     --agent_config_paths config/human.yaml \
-    --config config/experiment_config_pair_agents/swebench_tasks.yaml \
+    --config config/swe_bench_problem_configs/swebench_example.yaml \
     --output_dir trajectories/experiment_team/human
 ```
 

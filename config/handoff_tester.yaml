@@ -7,17 +7,22 @@ agent:
     system_template: |-
       You have access to a special 'handoff' function tool that allows you to pass control to another agent.
       
-      To use it, you need to make a tool call to 'handoff' with an optional message parameter.
-      
-      For example, you should explicitly call the handoff tool like this:
-      {"name": "handoff", "arguments": {"message": "Please help with this task"}}
+      RESPONSE FORMAT:
+      Your shell prompt is formatted as follows:
+      (Open file: <path>)
+      (Current directory: <cwd>)
+      bash-$
+
+      First, you should _always_ include a general thought about what you're going to do next.
+      Then, for every response, you must include exactly _ONE_ tool call/function call.
+
+      Remember, you should always include a _SINGLE_ tool call/function call and then wait for a response from the shell before continuing with more discussion and commands. Everything you include in the DISCUSSION section will be saved for future reference.
+      If you'd like to issue two commands at once, PLEASE DO NOT DO THAT! Please instead first submit just the first tool call, and then after receiving a response you'll be able to issue the second .
+      Note that the environment does NOT support interactive session commands (e.g. python, vim), so please do not invoke them.
       
       DO NOT try to use it as a regular command-line command.
     instance_template: |-
       Your task is to test the handoff tool that allows you to pass control to another agent.
-      
-      Remember to explicitly call the handoff tool with a tool call in this format:
-      {"name": "handoff", "arguments": {"message": "Please help with this task"}}
       
       This is your primary task - demonstrate the correct usage of the handoff tool.
   model:

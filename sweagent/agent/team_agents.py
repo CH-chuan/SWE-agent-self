@@ -302,6 +302,42 @@ class Team(AbstractAgent):
         if not handoff_enabled:
             self.logger.debug(f"Handoff tool is disabled for agent {current_agent.name}")
             return False
+            
+        # Check if the action contains our special tool marker
+        action = None
+        if isinstance(step_output, dict):
+            action = step_output.get("action", "")
+        else:  # Object attribute access
+            action = getattr(step_output, "action", "")
+        
+        # Check if the action is our special tool format for handoff
+        if action and isinstance(action, str) and action.startswith("__SPECIAL_TOOL__"):
+            import json
+            try:
+                tool_call_json = action[len("__SPECIAL_TOOL__"):]
+                tool_call = json.loads(tool_call_json)
+                if tool_call.get("function", {}).get("name", "").lower() == "handoff":
+                    # Extract the handoff message if provided
+                    message = ""
+                    try:
+                        args = tool_call.get("function", {}).get("arguments", "{}")
+                        if isinstance(args, str):
+                            args = json.loads(args)
+                        elif isinstance(args, dict):
+                            pass  # Already a dict
+                        else:
+                            args = {}
+                        message = args.get("message", "")
+                    except Exception:
+                        pass  # Ignore parsing errors
+                        
+                    if message:
+                        self.logger.info(f"Agent {current_agent.name} requested handoff with message: {message}")
+                    else:
+                        self.logger.info(f"Agent {current_agent.name} requested handoff")
+                    return True
+            except Exception as e:
+                self.logger.warning(f"Error parsing special tool format: {e}")
         
         # Check if there are any tool calls in the step_output
         # Handle both dictionary and object types for step_output

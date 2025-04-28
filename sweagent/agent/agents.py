@@ -951,6 +951,66 @@ class DefaultAgent(AbstractAgent):
         Returns:
             action_execution_output: action execution output
         """
+        # Handle special tools from the parser that use the __SPECIAL_TOOL__ marker
+        if step.action and step.action.startswith('__SPECIAL_TOOL__'):
+            import json
+            tool_call_json = step.action[len('__SPECIAL_TOOL__'):]
+            try:
+                tool_call = json.loads(tool_call_json)
+                if tool_call['function']['name'].lower() == 'handoff':
+                    # Process handoff tool
+                    message = ""
+                    try:
+                        args = tool_call['function']['arguments']
+                        if isinstance(args, str):
+                            args = json.loads(args)
+                        elif isinstance(args, dict):
+                            pass  # Already a dict
+                        else:
+                            args = {}
+                        message = args.get('message', '')
+                    except Exception as e:
+                        self.logger.warning(f"Error parsing handoff message: {e}")
+                    
+                    # Set a successful observation for the handoff
+                    if message:
+                        step.observation = f"Handoff requested with message: {message}"
+                    else:
+                        step.observation = "Handoff requested"
+                    self.logger.info(f"Handoff tool used: {step.observation}")
+                    assert self._env is not None
+                    step.state = self.tools.get_state(env=self._env)  # for history
+                    return step
+            except Exception as e:
+                self.logger.error(f"Error handling special tool: {e}")
+                # Fall through to regular processing if special tool handling fails
+        
+        # Our existing special case for tool_calls in step (keeping this as backup)
+        if hasattr(step, 'tool_calls') and step.tool_calls:
+            for tool_call in step.tool_calls:
+                if tool_call.get('name', '').lower() == 'handoff':
+                    # This is a handoff tool call - don't execute it as a bash command
+                    message = ""
+                    try:
+                        args = tool_call.get('arguments', {})
+                        if isinstance(args, str):
+                            # Parse JSON string arguments
+                            import json
+                            args = json.loads(args)
+                        message = args.get('message', '')
+                    except Exception:
+                        pass  # Ignore parsing errors
+                    
+                    # Set a successful observation for the handoff
+                    if message:
+                        step.observation = f"Handoff requested with message: {message}"
+                    else:
+                        step.observation = "Handoff requested"
+                    self.logger.info(f"Handoff tool used: {step.observation}")
+                    assert self._env is not None
+                    step.state = self.tools.get_state(env=self._env)  # for history
+                    return step
+        
         if self.tools.should_block_action(step.action):
             raise _BlockedActionError()
 
