@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import List, Self
 
 import yaml
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from swerex.deployment.hooks.status import SetStatusDeploymentHook
 
@@ -71,6 +71,22 @@ class RunBatchTeamConfig(BaseSettings, cli_implicit_flags=False):
 
     # pydantic config
     model_config = SettingsConfigDict(extra="forbid", env_prefix="SWE_AGENT_")
+    
+    @model_validator(mode="after")
+    def evaluate_and_redo_existing(self) -> Self:
+        """Validate that evaluate and redo_existing are not both True."""
+        from sweagent.run.batch_instances import SWEBenchInstances
+        
+        if not isinstance(self.instances, SWEBenchInstances):
+            return self
+        if hasattr(self.instances, "evaluate") and self.instances.evaluate and self.redo_existing:
+            msg = (
+                "Cannot evaluate and redo existing at the same time. This would cause invalid results, because "
+                "after the first merge_preds gives you a preds.json, this file would be submitted to SB-CLI, causing"
+                "evaluation of old instances, which could then not be overwritten by the new ones."
+            )
+            raise ValueError(msg)
+        return self
 
     # @classmethod
     # def from_dict(cls, config_dict: dict) -> Self:
@@ -203,10 +219,21 @@ class RunBatchTeam(RunBatch):
         output_dir.mkdir(parents=True, exist_ok=True)
         
         # Get instances from config
+        logger = get_logger("run-team", emoji="👥")
+        logger.debug("Loading instances from %s", f"{config.instances!r}")
         instances = config.instances.get_instance_configs()
+        logger.info("Loaded %d instances", len(instances))
+        if not instances:
+            msg = (
+                "No instances to run. Here are a few things to check:\n"
+                "- With huggingface data: Check that you have the right split (test or dev)\n"
+                "- Check your filter does not exclude all instances (check the info log messages)"
+            )
+            raise ValueError(msg)
+        logger.debug("The first instance is %s", f"{instances[0]!r}")
         
         # Create RunBatchTeam instance
-        return cls(
+        rb = cls(
             instances=instances,
             agent_config_paths=config.agent_config_paths,
             team_name=config.team_name,
@@ -218,6 +245,24 @@ class RunBatchTeam(RunBatch):
             progress_bar=config.progress_bar,
             random_delay_multiplier=config.random_delay_multiplier,
         )
+        
+        # Add SWE-bench evaluation hook if needed
+        from sweagent.run.batch_instances import SWEBenchInstances
+        
+        if isinstance(config.instances, SWEBenchInstances) and hasattr(config.instances, "evaluate") and config.instances.evaluate:
+            from sweagent.run.hooks.swe_bench_evaluate import SweBenchEvaluate
+
+            rb.add_hook(
+                SweBenchEvaluate(
+                    output_dir=output_dir,
+                    subset=config.instances.subset,
+                    split=config.instances.split,
+                    continuous_submission_every=30,
+                )
+            )
+            logger.info("Added SWE-bench evaluation hook")
+            
+        return rb
         
     def _run_instance(self, instance: BatchInstance) -> AgentRunResult:
         """Run a team of agents on a single instance.
