@@ -1,3 +1,15 @@
+# Actual Run Commands for Experiment
+
+# baseline
+nohup sweagent run-batch-team \
+    --agent_config_paths config/experiment_config_pair_agents/azure_4o_baseline_driver.yaml \
+    --agent_config_paths config/experiment_config_pair_agents/azure_4o_baseline_navigator.yaml \
+    --config config/experiment_config_pair_agents/swebench_tasks.yaml \
+    --output_dir trajectories/experiment_team/4o_baseline \
+  > trajectories/experiment_team/4o_baseline.log 2>&1 &
+
+
+
 # Test Running Single Task
 ```bash
 sweagent run-batch-team \

@@ -376,7 +376,8 @@ class Team(AbstractAgent):
             step_output = step_raw
         
         # Check if the agent requested a handoff
-        if self._check_for_handoff(step_output):
+        handoff_requested = self._check_for_handoff(step_output)
+        if handoff_requested:
             # Force rotation to the next agent on the next step by maxing out this agent's turns
             agent_max_turns = getattr(agent, "max_consecutive_turns", self.max_consecutive_turns)
             self.agent_consecutive_turns[agent.name] = agent_max_turns
@@ -385,8 +386,20 @@ class Team(AbstractAgent):
         # Share step information with other agents based on the source agent's sharing preferences
         for other_agent in self.agents:
             if other_agent != agent:
-                # Check if the agent wants to share only tool results or full context
-                if hasattr(agent, "share_only_tool_results") and agent.share_only_tool_results:
+                # Check if handoff was requested - if so, always share full context
+                # Otherwise use the agent's default sharing preference
+                if handoff_requested:
+                    # When handoff is used, share full context (not just tool results)
+                    self.logger.debug(f"Agent {agent.name} used handoff, sharing full context with {other_agent.name}")
+                    # Create a special history entry for handoff
+                    other_agent._append_history({
+                        "role": "assistant",
+                        "content": step_output.thought,
+                        "thought": step_output.thought,
+                        "agent": agent.name,
+                        "message_type": "handoff",
+                    })
+                elif hasattr(agent, "share_only_tool_results") and agent.share_only_tool_results:
                     # Only share observation/tool results, not the agent's messages requesting the tools
                     self._share_tool_results_only(agent, other_agent, step_output)
                     self.logger.debug(f"Agent {agent.name} shared only tool results with {other_agent.name}")
