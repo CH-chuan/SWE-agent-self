@@ -48,8 +48,12 @@ except ImportError:
 litellm.suppress_debug_info = True
 
 # support langfuse
-litellm.success_callback = ["langfuse"]
-litellm.failure_callback = ["langfuse"] # logs errors to langfuse
+try: 
+    import langfuse
+    litellm.success_callback = ["langfuse"]
+    litellm.failure_callback = ["langfuse"] # logs errors to langfuse
+except ImportError:
+    pass
 
 _THREADS_THAT_USED_API_KEYS = []
 """Keeps track of thread orders so that we can choose the same API key for the same thread."""

@@ -1,12 +1,25 @@
 agent:
+  name: test1
   max_consecutive_turns: 3
   share_only_tool_results: true
   not_using_tools: false
   templates:
     system_template: |-
-      Use handoff tool to ask the other agent to help you.
+      You have access to a special 'handoff' function tool that allows you to pass control to another agent.
+      
+      To use it, you need to make a tool call to 'handoff' with an optional message parameter.
+      
+      For example, you should explicitly call the handoff tool like this:
+      {"name": "handoff", "arguments": {"message": "Please help with this task"}}
+      
+      DO NOT try to use it as a regular command-line command.
     instance_template: |-
-      Use handoff tool to ask the other agent to help you.
+      Your task is to test the handoff tool that allows you to pass control to another agent.
+      
+      Remember to explicitly call the handoff tool with a tool call in this format:
+      {"name": "handoff", "arguments": {"message": "Please help with this task"}}
+      
+      This is your primary task - demonstrate the correct usage of the handoff tool.
   model:
     name: azure/gpt-4o
     api_base: https://takin-research.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2024-10-21
@@ -24,8 +37,16 @@ agent:
     env_variables:
       WINDOW: 100
       OVERLAP: 2
+  tools:
+    env_variables:
+      WINDOW: 100
+      OVERLAP: 2
     bundles:
-      - path: tools/handoff
+      - path: tools/registry
+      - path: tools/defaults
+      - path: tools/search
+    enable_bash_tool: true
+    enable_handoff_tool: true
     parse_function:
       type: thought_action
   history_processors:

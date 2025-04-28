@@ -233,7 +233,8 @@ class ToolHandler:
         )
 
     async def _is_command_available(self, env, command: str, env_vars: dict[str, str]) -> None:
-        if command == "bash":
+        # Skip verification for built-in virtual tools
+        if command == "bash" or command == "handoff":
             return
         try:
             await env.deployment.runtime.execute(

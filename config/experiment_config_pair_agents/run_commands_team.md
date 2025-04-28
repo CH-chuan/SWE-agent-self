@@ -22,37 +22,12 @@ sweagent run-batch-team \
 ## Test with human as agent
 ```bash
 sweagent run-batch-team \
-    --agent_config_paths config/human.yaml \
+    --agent_config_paths config/handoff_tester1.yaml \
     --agent_config_paths config/human.yaml \
     --config config/experiment_config_pair_agents/swebench_tasks.yaml \
     --output_dir trajectories/experiment_team/human
 ```
 
-# Test Running Benchmark
-```bash
-sweagent run-batch \
-    --config config/agent_configs/claude_example.yaml \
-    --config config/swe_bench_problem_configs/swebench_example.yaml
-```
-
-```bash
-sweagent run-batch \
-    --config config/agent_configs/azure_4omini_example.yaml \
-    --config config/swe_bench_problem_configs/swebench_example.yaml \
-    --output_dir trajectories/swebench_test
-```
-
-```bash
-sweagent run-batch \
-    --config config/agent_configs/azure_4o_example.yaml \
-    --config config/swe_bench_problem_configs/swebench_example.yaml 
-```
-
-```bash
-sweagent run-batch \
-    --config config/agent_configs/human.yaml \
-    --config config/swe_bench_problem_configs/swebench_example.yaml
-```
 
 clear docker envs
 ```bash
