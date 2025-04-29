@@ -9,6 +9,15 @@ nohup sweagent run-batch-team \
     --output_dir trajectories/experiment_team/4o_baseline \
   > trajectories/experiment_team/4o_baseline.log 2>&1 &
 ```
+### round 2
+```bash
+nohup sweagent run-batch-team \
+    --agent_config_paths config/experiment_config_pair_agents/azure_4o_baseline_driver.yaml \
+    --agent_config_paths config/experiment_config_pair_agents/azure_4o_baseline_navigator.yaml \
+    --config config/experiment_config_pair_agents/swebench_tasks.yaml \
+    --output_dir trajectories/experiment_team/4o_baseline_round2 \
+  > trajectories/experiment_team/4o_baseline_round2.log 2>&1 &
+```
 
 ## comprehensive role
 ```bash
@@ -16,8 +25,17 @@ nohup sweagent run-batch-team \
     --agent_config_paths config/experiment_config_pair_agents/comprehensive_role/azure_4o_driver.yaml \
     --agent_config_paths config/experiment_config_pair_agents/comprehensive_role/azure_4o_navigator.yaml \
     --config config/experiment_config_pair_agents/swebench_tasks.yaml \
-    --output_dir trajectories/experiment_team/4o_comprehensive_role \
+    --output_dir trajectories/experiment_team/4o_comprehensive_role_ \
   > trajectories/experiment_team/4o_comprehensive_role.log 2>&1 &
+```
+### round 2
+```bash
+nohup sweagent run-batch-team \
+    --agent_config_paths config/experiment_config_pair_agents/comprehensive_role/azure_4o_driver.yaml \
+    --agent_config_paths config/experiment_config_pair_agents/comprehensive_role/azure_4o_navigator.yaml \
+    --config config/experiment_config_pair_agents/swebench_tasks.yaml \
+    --output_dir trajectories/experiment_team/4o_comprehensive_role_round2 \
+  > trajectories/experiment_team/4o_comprehensive_role_round2.log 2>&1 &
 ```
 
 
