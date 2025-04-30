@@ -497,7 +497,7 @@ class Team(AbstractAgent):
                             if hasattr(step_copy, 'tool_call_ids'):
                                 delattr(step_copy, 'tool_call_ids')
                         
-                        other_agent.add_step_to_history(step_copy)
+                        other_agent.add_step_to_history(step_copy, name=agent.name)
                         self.logger.debug(f"Agent {agent.name} shared full context with {other_agent.name}")
         
         # Update shared trajectory

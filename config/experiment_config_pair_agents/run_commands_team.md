@@ -38,6 +38,16 @@ nohup sweagent run-batch-team \
   > trajectories/experiment_team/4o_comprehensive_role_round2.log 2>&1 &
 ```
 
+## no handoff tool
+```bash
+nohup sweagent run-batch-team \
+    --agent_config_paths config/experiment_config_pair_agents/no_handoff_tool/azure_4o_driver.yaml \
+    --agent_config_paths config/experiment_config_pair_agents/no_handoff_tool/azure_4o_navigator.yaml \
+    --config config/experiment_config_pair_agents/swebench_tasks.yaml \
+    --output_dir trajectories/experiment_team/4o_no_handoff_tool \
+  > trajectories/experiment_team/4o_no_handoff_tool.log 2>&1 &
+```
+
 
 # Test Running Single Task
 ```bash

@@ -698,15 +698,17 @@ class DefaultAgent(AbstractAgent):
             history_item["tool_call_ids"] = tool_call_ids
         self._append_history(history_item)
 
-    def add_step_to_history(self, step: StepOutput) -> None:
+    def add_step_to_history(self, step: StepOutput, name: str | None = None) -> None:
         """Adds a step (command that was run and output) to the model history"""
+        if name is None:
+            name = self.name
         # Create the base history item
         history_item = {
             "role": "assistant",
             "content": step.output,
             "thought": step.thought,
             "action": step.action,
-            "agent": self.name,
+            "agent": name,
             "message_type": "action",
         }
         
