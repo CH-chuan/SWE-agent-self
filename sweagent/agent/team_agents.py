@@ -196,14 +196,10 @@ class Team(AbstractAgent):
             # First add a dummy assistant message with or without tool calls based on agent type
             history_item = {
                 "role": "assistant", 
-                "content": "", 
-                "agent": target_agent.name,  # Add the agent field
+                "content": f"driver used tool: {step_output.action}", 
+                "agent": source_agent.name,  # Add the agent field
                 "message_type": "action"  # Ensure message_type is present for history processors
             }
-            
-            # Only add tool_calls for agents that use tools (e.g., not navigator)
-            if not hasattr(target_agent, 'not_using_tools') or not target_agent.not_using_tools:
-                history_item["tool_calls"] = tool_calls
                 
             target_agent.history.append(history_item)
             
@@ -228,10 +224,6 @@ class Team(AbstractAgent):
             # Add state if it exists and is not empty
             if state:
                 kwargs.update(state)
-                
-            # Only add tool_call_ids for agents that use tools
-            if not hasattr(target_agent, 'not_using_tools') or not target_agent.not_using_tools:
-                kwargs["tool_call_ids"] = tool_call_ids
                 
             target_agent._add_templated_messages_to_history(
                 templates,
@@ -274,7 +266,7 @@ class Team(AbstractAgent):
             message = "\n".join(formatted_messages)
             target_agent.history.append({
                 "role": "user",
-                "content": message,
+                "content": f"[{target_agent.name}]: {message}",
                 "agent": target_agent.name,
                 "message_type": "observation",
             })
@@ -450,6 +442,10 @@ class Team(AbstractAgent):
             self.logger.info(f"Agent {agent.name} explicitly requested handoff to next agent")
         
         # Share step information with other agents based on the source agent's sharing preferences
+        to_share_content = f"[{agent.name}]: {step_output.thought}"
+        to_share_step = copy.deepcopy(step_output)
+        to_share_step.thought = to_share_content
+        to_share_step.content = to_share_content
         for other_agent in self.agents:
             if other_agent != agent:
                 # Check if handoff was requested - if so, always share full context
@@ -458,47 +454,41 @@ class Team(AbstractAgent):
                     # When handoff is used, share full context (not just tool results)
                     self.logger.debug(f"Agent {agent.name} used handoff, sharing full context with {other_agent.name}")
                     # Create a special history entry for handoff
-                    other_agent._append_history({
-                        "role": "assistant",
-                        "content": step_output.thought,
-                        "thought": step_output.thought,
-                        "agent": agent.name,
-                        "message_type": "handoff",
-                    })
+                    other_agent.add_step_to_history(to_share_step, name=agent.name)
                 elif hasattr(agent, "share_only_tool_results") and agent.share_only_tool_results:
                     # Only share observation/tool results, not the agent's messages requesting the tools
-                    self._share_tool_results_only(agent, other_agent, step_output)
+                    self._share_tool_results_only(agent, other_agent, to_share_step)
                     self.logger.debug(f"Agent {agent.name} shared only tool results with {other_agent.name}")
                 else:
                     # For agents with not_using_tools=True (like navigator), don't share any context
                     # to avoid creating a mock tool execution result in the other agent's history
+                    # if hasattr(agent, 'not_using_tools') and agent.not_using_tools:
+                    #     # Create a minimal history entry with just the thought
+                    #     # This avoids the "Your command ran successfully..." log message
+                    #     other_agent._append_history({
+                    #         "role": "assistant",
+                    #         "content": to_share_step.thought,
+                    #         "thought": to_share_step.thought,
+                    #         "action": "",
+                    #         "agent": agent.name,  # Use the source agent's name
+                    #         "message_type": "non_tool_thought",
+                    #     })
+                    #     self.logger.debug(f"Agent {agent.name} shared only thought with {other_agent.name} (no tool execution)")
+                    # else:
+                    # Share full step output including agent reasoning for normal agents
+                    # step_copy = copy.deepcopy(to_share_step)
+                    
+                    # If the source agent doesn't use tools but the target agent does,
+                    # we need to ensure we don't pass empty tool_calls arrays to Azure OpenAI
                     if hasattr(agent, 'not_using_tools') and agent.not_using_tools:
-                        # Create a minimal history entry with just the thought
-                        # This avoids the "Your command ran successfully..." log message
-                        other_agent._append_history({
-                            "role": "assistant",
-                            "content": step_output.thought,
-                            "thought": step_output.thought,
-                            "action": "",
-                            "agent": agent.name,  # Use the source agent's name
-                            "message_type": "non_tool_thought",
-                        })
-                        self.logger.debug(f"Agent {agent.name} shared only thought with {other_agent.name} (no tool execution)")
-                    else:
-                        # Share full step output including agent reasoning for normal agents
-                        step_copy = copy.deepcopy(step_output)
-                        
-                        # If the source agent doesn't use tools but the target agent does,
-                        # we need to ensure we don't pass empty tool_calls arrays to Azure OpenAI
-                        if hasattr(agent, 'not_using_tools') and agent.not_using_tools:
-                            # Remove tool_calls and tool_call_ids to prevent Azure API errors
-                            if hasattr(step_copy, 'tool_calls'):
-                                delattr(step_copy, 'tool_calls')
-                            if hasattr(step_copy, 'tool_call_ids'):
-                                delattr(step_copy, 'tool_call_ids')
-                        
-                        other_agent.add_step_to_history(step_copy, name=agent.name)
-                        self.logger.debug(f"Agent {agent.name} shared full context with {other_agent.name}")
+                        # Remove tool_calls and tool_call_ids to prevent Azure API errors
+                        if hasattr(to_share_step, 'tool_calls'):
+                            delattr(to_share_step, 'tool_calls')
+                        if hasattr(to_share_step, 'tool_call_ids'):
+                            delattr(to_share_step, 'tool_call_ids')
+                    
+                    other_agent.add_step_to_history(to_share_step, name=agent.name)
+                    self.logger.debug(f"Agent {agent.name} shared full context with {other_agent.name}")
         
         # Update shared trajectory
         # We only add the latest step to avoid duplication

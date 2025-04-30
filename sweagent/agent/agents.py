@@ -536,7 +536,8 @@ class DefaultAgent(AbstractAgent):
         """Return the history of the agent for this attempt since the last reset,
         processed through all history processors.
         """
-        filtered_history = [entry for entry in self.history if entry["agent"] == self.name]  # type: ignore
+        # do not filter out messages from driver and navigator when performing role play
+        filtered_history = [entry for entry in self.history if entry["agent"] == self.name or entry["agent"] == "driver" or entry["agent"] == "navigator"]  # type: ignore
 
         # Chain the history processors
         messages = filtered_history
