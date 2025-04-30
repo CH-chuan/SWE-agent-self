@@ -427,7 +427,6 @@ class Team(AbstractAgent):
         
         # Ensure we have a proper StepOutput object, not a dictionary
         if isinstance(step_raw, dict):
-            from sweagent.types import StepOutput
             step_output = StepOutput(**step_raw)
             self.logger.warning(f"Agent {agent.name} returned a dictionary instead of StepOutput object. Converting to StepOutput.")
         else:
@@ -444,8 +443,7 @@ class Team(AbstractAgent):
         # Share step information with other agents based on the source agent's sharing preferences
         to_share_content = f"[{agent.name}]: {step_output.thought}"
         to_share_step = copy.deepcopy(step_output)
-        to_share_step.thought = to_share_content
-        to_share_step.content = to_share_content
+        to_share_step.output = to_share_content # change output because output is the thing that the agent will actually query about, while thought is just for showing.
         for other_agent in self.agents:
             if other_agent != agent:
                 # Check if handoff was requested - if so, always share full context
