@@ -460,33 +460,33 @@ class Team(AbstractAgent):
                 else:
                     # For agents with not_using_tools=True (like navigator), don't share any context
                     # to avoid creating a mock tool execution result in the other agent's history
-                    # if hasattr(agent, 'not_using_tools') and agent.not_using_tools:
-                    #     # Create a minimal history entry with just the thought
-                    #     # This avoids the "Your command ran successfully..." log message
-                    #     other_agent._append_history({
-                    #         "role": "assistant",
-                    #         "content": to_share_step.thought,
-                    #         "thought": to_share_step.thought,
-                    #         "action": "",
-                    #         "agent": agent.name,  # Use the source agent's name
-                    #         "message_type": "non_tool_thought",
-                    #     })
-                    #     self.logger.debug(f"Agent {agent.name} shared only thought with {other_agent.name} (no tool execution)")
-                    # else:
-                    # Share full step output including agent reasoning for normal agents
-                    # step_copy = copy.deepcopy(to_share_step)
-                    
-                    # If the source agent doesn't use tools but the target agent does,
-                    # we need to ensure we don't pass empty tool_calls arrays to Azure OpenAI
                     if hasattr(agent, 'not_using_tools') and agent.not_using_tools:
-                        # Remove tool_calls and tool_call_ids to prevent Azure API errors
-                        if hasattr(to_share_step, 'tool_calls'):
-                            delattr(to_share_step, 'tool_calls')
-                        if hasattr(to_share_step, 'tool_call_ids'):
-                            delattr(to_share_step, 'tool_call_ids')
+                        # Create a minimal history entry with just the thought
+                        # This avoids the "Your command ran successfully..." log message
+                        other_agent._append_history({
+                            "role": "assistant",
+                            "content": to_share_step.thought,
+                            "thought": to_share_step.thought,
+                            "action": "",
+                            "agent": agent.name,  # Use the source agent's name
+                            "message_type": "non_tool_thought",
+                        })
+                        self.logger.debug(f"Agent {agent.name} shared only thought with {other_agent.name} (no tool execution)")
+                    else:
+                        # Share full step output including agent reasoning for normal agents
+                        # step_copy = copy.deepcopy(to_share_step)
+                        
+                        # If the source agent doesn't use tools but the target agent does,
+                        # we need to ensure we don't pass empty tool_calls arrays to Azure OpenAI
+                        if hasattr(agent, 'not_using_tools') and agent.not_using_tools:
+                            # Remove tool_calls and tool_call_ids to prevent Azure API errors
+                            if hasattr(to_share_step, 'tool_calls'):
+                                delattr(to_share_step, 'tool_calls')
+                            if hasattr(to_share_step, 'tool_call_ids'):
+                                delattr(to_share_step, 'tool_call_ids')
                     
-                    other_agent.add_step_to_history(to_share_step, name=agent.name)
-                    self.logger.debug(f"Agent {agent.name} shared full context with {other_agent.name}")
+                        other_agent.add_step_to_history(to_share_step, name=agent.name)
+                        self.logger.debug(f"Agent {agent.name} shared full context with {other_agent.name}")
         
         # Update shared trajectory
         # We only add the latest step to avoid duplication

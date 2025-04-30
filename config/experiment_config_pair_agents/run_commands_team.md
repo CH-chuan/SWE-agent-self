@@ -25,7 +25,7 @@ nohup sweagent run-batch-team \
     --agent_config_paths config/experiment_config_pair_agents/comprehensive_role/azure_4o_driver.yaml \
     --agent_config_paths config/experiment_config_pair_agents/comprehensive_role/azure_4o_navigator.yaml \
     --config config/experiment_config_pair_agents/swebench_tasks.yaml \
-    --output_dir trajectories/experiment_team/4o_comprehensive_role_ \
+    --output_dir trajectories/experiment_team/4o_comprehensive_role \
   > trajectories/experiment_team/4o_comprehensive_role.log 2>&1 &
 ```
 ### round 2

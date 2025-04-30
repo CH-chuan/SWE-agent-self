@@ -821,7 +821,10 @@ class LiteLLMModel(AbstractModel):
             elif (tool_calls := history_item.get("tool_calls")) is not None:
                 message = {"role": role, "content": history_item["content"], "tool_calls": tool_calls}
             else:
-                message = {"role": role, "content": history_item["content"]}
+                if history_item["agent"] == "driver" or history_item["agent"] == "navigator":
+                    message = {"role": role, "content": history_item["content"], "name": history_item["agent"]}
+                else:
+                    message = {"role": role, "content": history_item["content"]}
             if "cache_control" in history_item:
                 message["cache_control"] = history_item["cache_control"]
             messages.append(message)

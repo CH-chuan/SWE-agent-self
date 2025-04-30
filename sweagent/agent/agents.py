@@ -659,7 +659,8 @@ class DefaultAgent(AbstractAgent):
         )
 
     def _add_templated_messages_to_history(
-        self, templates: list[str], tool_call_ids: list[str] | None = None, **kwargs: str | int | None
+        self, templates: list[str], tool_call_ids: list[str] | None = None, 
+        name: str | None = None, **kwargs: str | int | None
     ) -> None:
         """Populate selected template(s) with information (e.g., issue, arguments, state)
         and add to history.
@@ -688,7 +689,7 @@ class DefaultAgent(AbstractAgent):
         history_item: dict[str, Any] = {
             "role": "user",
             "content": message,
-            "agent": self.name,
+            "agent": name or self.name,
             "message_type": "observation",
         }
         # Only add tool_call_ids for agents that use tools (not navigator)
@@ -826,6 +827,11 @@ class DefaultAgent(AbstractAgent):
 
         self.logger.warning(f"{error_template}")
 
+        # in messsages, "agent" shows name only for tracking purposes
+        # and messages is the input as the history for the model query.
+        # while after we modified the history by def _history_to_messages
+        # the agent name is removed, however, to track the name
+        # we added name back to query messages in _history_to_messages if it is not tool
         return self.messages + [
             {"role": "assistant", "content": output, "agent": self.name},
             {"role": "user", "content": error_template, "agent": self.name},
