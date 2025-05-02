@@ -28,7 +28,8 @@ agent:
       
       The paired navigator will give you suggestions after you making 3 consecutive turns. 
       You can also use handoff tool to ask the navigator to help you.
-      
+      Notice that the navigator only give you suggestions and comments, not directly help you finish the task.
+
       You're working directly in the command line with a special interface.
 
       The special interface consists of a file editor that shows you {{WINDOW}} lines of a file at a time.

@@ -2,11 +2,11 @@
 
 # === CONFIGURATION ===
 
-TARGET_PID=10168
+TARGET_PID=6142
 
-INITIAL_SLEEP_SECONDS=$((3 * 60 * 60))  # Start with 3 hours
-MIN_SLEEP_SECONDS=$((20 * 60))                    # Don't go below 15 minutes
-DECAY_FACTOR=0.5
+INITIAL_SLEEP_SECONDS=$((3 * 60 * 60))  # Start with 4 hours
+MIN_SLEEP_SECONDS=$((15 * 60))                    # Don't go below 15 minutes
+DECAY_FACTOR=0.4
 
 # === FUNCTION TO CHECK IF PROCESS IS RUNNING ===
 is_running() {
@@ -31,11 +31,11 @@ while true; do
         echo "[$(date)] Process $TARGET_PID has finished. Launching new command..."
 
         nohup sweagent run-batch-team \
-            --agent_config_paths config/experiment_config_pair_agents/comprehensive_role/azure_4o_driver.yaml \
-            --agent_config_paths config/experiment_config_pair_agents/comprehensive_role/azure_4o_navigator.yaml \
+            --agent_config_paths config/experiment_config_pair_agents/personality_agents/Introversion/azure_4o_driver_In.yaml \
+            --agent_config_paths config/experiment_config_pair_agents/personality_agents/Introversion/azure_4o_navigator_In.yaml \
             --config config/experiment_config_pair_agents/swebench_tasks.yaml \
-            --output_dir trajectories/experiment_team/4o_comprehensive_role \
-            > trajectories/experiment_team/4o_comprehensive_role.log 2>&1 &
+            --output_dir trajectories/experiment_team/4o_personality_II \
+          > trajectories/experiment_team/4o_personality_II.log 2>&1 &
 
         NEW_PID=$!
         echo "New process started with PID $NEW_PID"
