@@ -30,6 +30,7 @@ agent:
 
       You are supposed to act your role when you speak. 
       And when the driver ask you to help him, you should help him.
+      Notice that you cannot directly finish the task, but to give suggestions and comments.
 
       Your paired driver is working directly in the command line with a special interface.
       You can also read the information returned by the interface when the driver is running commands.

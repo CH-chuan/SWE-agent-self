@@ -88,6 +88,138 @@ nohup sweagent run-batch-team \
   > trajectories/experiment_team/4o_personality_II.log 2>&1 &
 ```
 
+round 2
+```bash
+nohup sweagent run-batch-team \
+    --agent_config_paths config/experiment_config_pair_agents/personality_agents/Extraversion/azure_4o_driver_In.yaml \
+    --agent_config_paths config/experiment_config_pair_agents/personality_agents/Extraversion/azure_4o_navigator_In.yaml \
+    --config config/experiment_config_pair_agents/swebench_tasks.yaml \
+    --output_dir trajectories/experiment_team/4o_personality_II_round2 \
+  > trajectories/experiment_team/4o_personality_II_round2.log 2>&1 &
+```
+
+### I, E
+```bash
+nohup sweagent run-batch-team \
+    --agent_config_paths config/experiment_config_pair_agents/personality_agents/Extraversion/azure_4o_driver_In.yaml \
+    --agent_config_paths config/experiment_config_pair_agents/personality_agents/Extraversion/azure_4o_navigator_Ex.yaml \
+    --config config/experiment_config_pair_agents/swebench_tasks.yaml \
+    --output_dir trajectories/experiment_team/4o_personality_IE \
+  > trajectories/experiment_team/4o_personality_IE.log 2>&1 &
+```
+
+### E, I
+```bash
+nohup sweagent run-batch-team \
+    --agent_config_paths config/experiment_config_pair_agents/personality_agents/Extraversion/azure_4o_driver_Ex.yaml \
+    --agent_config_paths config/experiment_config_pair_agents/personality_agents/Extraversion/azure_4o_navigator_In.yaml \
+    --config config/experiment_config_pair_agents/swebench_tasks.yaml \
+    --output_dir trajectories/experiment_team/4o_personality_EI \
+  > trajectories/experiment_team/4o_personality_EI.log 2>&1 &
+```
+
+### Con, Con
+```bash
+nohup sweagent run-batch-team \
+    --agent_config_paths config/experiment_config_pair_agents/personality_agents/Conscientiousness/azure_4o_driver_Con.yaml \
+    --agent_config_paths config/experiment_config_pair_agents/personality_agents/Conscientiousness/azure_4o_navigator_Con.yaml \
+    --config config/experiment_config_pair_agents/swebench_tasks.yaml \
+    --output_dir trajectories/experiment_team/4o_personality_ConCon \
+  > trajectories/experiment_team/4o_personality_ConCon.log 2>&1 &
+```
+
+round 2
+```bash
+nohup sweagent run-batch-team \
+    --agent_config_paths config/experiment_config_pair_agents/personality_agents/Conscientiousness/azure_4o_driver_Con.yaml \
+    --agent_config_paths config/experiment_config_pair_agents/personality_agents/Conscientiousness/azure_4o_navigator_Con.yaml \
+    --config config/experiment_config_pair_agents/swebench_tasks.yaml \
+    --output_dir trajectories/experiment_team/4o_personality_ConCon_round2 \
+  > trajectories/experiment_team/4o_personality_ConCon_round2.log 2>&1 &
+```
+
+### Uncon, Uncon
+```bash
+nohup sweagent run-batch-team \
+    --agent_config_paths config/experiment_config_pair_agents/personality_agents/Conscientiousness/azure_4o_driver_Uncon.yaml \
+    --agent_config_paths config/experiment_config_pair_agents/personality_agents/Conscientiousness/azure_4o_navigator_Uncon.yaml \
+    --config config/experiment_config_pair_agents/swebench_tasks.yaml \
+    --output_dir trajectories/experiment_team/4o_personality_UnconUncon \
+  > trajectories/experiment_team/4o_personality_UnconUncon.log 2>&1 &
+```
+
+round 2
+```bash
+nohup sweagent run-batch-team \
+    --agent_config_paths config/experiment_config_pair_agents/personality_agents/Conscientiousness/azure_4o_driver_Uncon.yaml \
+    --agent_config_paths config/experiment_config_pair_agents/personality_agents/Conscientiousness/azure_4o_navigator_Uncon.yaml \
+    --config config/experiment_config_pair_agents/swebench_tasks.yaml \
+    --output_dir trajectories/experiment_team/4o_personality_UnconUncon_round2 \
+  > trajectories/experiment_team/4o_personality_UnconUncon_round2.log 2>&1 &
+```
+
+### Con, Uncon
+```bash
+nohup sweagent run-batch-team \
+    --agent_config_paths config/experiment_config_pair_agents/personality_agents/Conscientiousness/azure_4o_driver_Con.yaml \
+    --agent_config_paths config/experiment_config_pair_agents/personality_agents/Conscientiousness/azure_4o_navigator_Uncon.yaml \
+    --config config/experiment_config_pair_agents/swebench_tasks.yaml \
+    --output_dir trajectories/experiment_team/4o_personality_ConUncon \
+  > trajectories/experiment_team/4o_personality_ConUncon.log 2>&1 &
+```
+
+### Uncon, Con
+```bash
+nohup sweagent run-batch-team \
+    --agent_config_paths config/experiment_config_pair_agents/personality_agents/Conscientiousness/azure_4o_driver_Uncon.yaml \
+    --agent_config_paths config/experiment_config_pair_agents/personality_agents/Conscientiousness/azure_4o_navigator_Con.yaml \
+    --config config/experiment_config_pair_agents/swebench_tasks.yaml \
+    --output_dir trajectories/experiment_team/4o_personality_UnconCon \
+  > trajectories/experiment_team/4o_personality_UnconCon.log 2>&1 &
+```
+
+
+
+### Agr, Agr
+```bash
+nohup sweagent run-batch-team \
+    --agent_config_paths config/experiment_config_pair_agents/personality_agents/Agreeableness/azure_4o_driver_Agr.yaml \
+    --agent_config_paths config/experiment_config_pair_agents/personality_agents/Agreeableness/azure_4o_navigator_Agr.yaml \
+    --config config/experiment_config_pair_agents/swebench_tasks.yaml \
+    --output_dir trajectories/experiment_team/4o_personality_AgrAgr \
+  > trajectories/experiment_team/4o_personality_AgrAgr.log 2>&1 &
+```
+
+### Unagr, Unagr
+```bash
+nohup sweagent run-batch-team \
+    --agent_config_paths config/experiment_config_pair_agents/personality_agents/Agreeableness/azure_4o_driver_Unagr.yaml \
+    --agent_config_paths config/experiment_config_pair_agents/personality_agents/Agreeableness/azure_4o_navigator_Unagr.yaml \
+    --config config/experiment_config_pair_agents/swebench_tasks.yaml \
+    --output_dir trajectories/experiment_team/4o_personality_UnagrUnagr \
+  > trajectories/experiment_team/4o_personality_UnagrUnagr.log 2>&1 &
+```
+
+### Agr, Unagr
+```bash
+nohup sweagent run-batch-team \
+    --agent_config_paths config/experiment_config_pair_agents/personality_agents/Agreeableness/azure_4o_driver_Agr.yaml \
+    --agent_config_paths config/experiment_config_pair_agents/personality_agents/Agreeableness/azure_4o_navigator_Unagr.yaml \
+    --config config/experiment_config_pair_agents/swebench_tasks.yaml \
+    --output_dir trajectories/experiment_team/4o_personality_AgrUnagr \
+  > trajectories/experiment_team/4o_personality_AgrUnagr.log 2>&1 &
+```
+
+### Unagr, Agr
+```bash
+nohup sweagent run-batch-team \
+    --agent_config_paths config/experiment_config_pair_agents/personality_agents/Agreeableness/azure_4o_driver_Unagr.yaml \
+    --agent_config_paths config/experiment_config_pair_agents/personality_agents/Agreeableness/azure_4o_navigator_Agr.yaml \
+    --config config/experiment_config_pair_agents/swebench_tasks.yaml \
+    --output_dir trajectories/experiment_team/4o_personality_UnagrAgr \
+  > trajectories/experiment_team/4o_personality_UnagrAgr.log 2>&1 &
+```
+
 
 # Test Running Single Task
 ```bash
