@@ -46,7 +46,7 @@ Baseline
 ```bash
 sweagent run-batch \
     --config config/experiment_config/azure_4o_baseline.yaml \
-    --config config/experiment_config/swebench_tasks.yaml \
+    --config config/experiment_config_single_agent/swebench_tasks.yaml  \
     --output_dir trajectories/swe_bench_experiment/4o_baseline
 ```
 notice, find cost in debug log
@@ -56,14 +56,14 @@ Baseline no tips
 ```bash
 sweagent run-batch \
     --config config/experiment_config/personality_agents/azure_4o_no_tips_Ex.yaml \
-    --config config/experiment_config/swebench_tasks.yaml \
+    --config config/experiment_config_single_agent/swebench_tasks.yaml  \
     --output_dir trajectories/swe_bench_experiment/4o_no_tips_Ex
 ```
 
 ```bash
 nohup sweagent run-batch \
     --config config/experiment_config/personality_agents/azure_4o_no_tips_Ex.yaml \
-    --config config/experiment_config/swebench_tasks.yaml \
+    --config config/experiment_config_single_agent/swebench_tasks.yaml  \
     --output_dir trajectories/swe_bench_experiment/4o_no_tips_Ex \
   > /dev/null 2>&1 &
 ```
@@ -76,7 +76,7 @@ nohup sweagent run-batch \
 ```bash
 nohup sweagent run-batch \
     --config config/experiment_config/azure_4o_baseline_no_tips.yaml \
-    --config config/experiment_config/swebench_tasks.yaml \
+    --config config/experiment_config_single_agent/swebench_tasks.yaml  \
     --output_dir trajectories/swe_bench_experiment/4o_baseline_no_tips_round2 \
   > /dev/null 2>&1 &
 ```
@@ -85,7 +85,7 @@ nohup sweagent run-batch \
 ```bash
 nohup sweagent run-batch \
     --config config/experiment_config/personality_agents/azure_4o_no_tips_Ex.yaml \
-    --config config/experiment_config/swebench_tasks.yaml \
+    --config config/experiment_config_single_agent/swebench_tasks.yaml  \
     --output_dir trajectories/swe_bench_experiment/4o_no_tips_Ex_round2 \
   > /dev/null 2>&1 &
 ```
@@ -94,7 +94,7 @@ nohup sweagent run-batch \
 ```bash
 nohup sweagent run-batch \
     --config config/experiment_config/personality_agents/azure_4o_no_tips_In.yaml \
-    --config config/experiment_config/swebench_tasks.yaml \
+    --config config/experiment_config_single_agent/swebench_tasks.yaml  \
     --output_dir trajectories/swe_bench_experiment/4o_no_tips_In \
   > /dev/null 2>&1 &
 ```
@@ -103,7 +103,7 @@ nohup sweagent run-batch \
 ```bash
 nohup sweagent run-batch \
     --config config/experiment_config/personality_agents/azure_4o_no_tips_Con.yaml \
-    --config config/experiment_config/swebench_tasks.yaml \
+    --config config/experiment_config_single_agent/swebench_tasks.yaml  \
     --output_dir trajectories/swe_bench_experiment/4o_no_tips_Con_round2 \
   > /dev/null 2>&1 &
 ```
@@ -111,17 +111,17 @@ nohup sweagent run-batch \
 ## Unconsentiousness
 ```bash
 nohup sweagent run-batch \
-    --config config/experiment_config/personality_agents/azure_4o_no_tips_Uncon.yaml \
-    --config config/experiment_config/swebench_tasks.yaml \
-    --output_dir trajectories/swe_bench_experiment/4o_no_tips_Uncon \
-  > /dev/null 2>&1 &
+    --config config/experiment_config_single_agent/personality_agents/azure_4o_no_tips_Uncon.yaml \
+    --config config/experiment_config_single_agent/swebench_tasks.yaml \
+    --output_dir trajectories/swe_bench_experiment/4o_no_tips_Uncon_round2 \
+  > trajectories/swe_bench_experiment/4o_no_tips_Uncon_round2.log 2>&1 &
 ```
 
 ## Openness
 ```bash
 nohup sweagent run-batch \
     --config config/experiment_config/personality_agents/azure_4o_no_tips_Open.yaml \
-    --config config/experiment_config/swebench_tasks.yaml \
+    --config config/experiment_config_single_agent/swebench_tasks.yaml  \
     --output_dir trajectories/swe_bench_experiment/4o_no_tips_Open \
   > /dev/null 2>&1 &
 ```
@@ -130,7 +130,7 @@ nohup sweagent run-batch \
 ```bash
 nohup sweagent run-batch \
     --config config/experiment_config/personality_agents/azure_4o_no_tips_Unopen.yaml \
-    --config config/experiment_config/swebench_tasks.yaml \
+    --config config/experiment_config_single_agent/swebench_tasks.yaml  \
     --output_dir trajectories/swe_bench_experiment/4o_no_tips_Unopen \
   > /dev/null 2>&1 &
 ```
