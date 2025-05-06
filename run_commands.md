@@ -113,7 +113,7 @@ nohup sweagent run-batch \
 nohup sweagent run-batch \
     --config config/experiment_config/personality_agents/azure_4o_no_tips_Uncon.yaml \
     --config config/experiment_config/swebench_tasks.yaml \
-    --output_dir trajectories/swe_bench_experiment/4o_no_tips_Uncon \
+    --output_dir trajectories/swe_bench_experiment/4o_no_tips_Uncon_round2 \
   > /dev/null 2>&1 &
 ```
 
