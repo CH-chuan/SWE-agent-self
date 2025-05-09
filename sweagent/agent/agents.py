@@ -488,6 +488,9 @@ class DefaultAgent(AbstractAgent):
         It can be used to replay the agent's trajectory in an environment.
         """
 
+        # Attribute for tracking retries of the current step
+        self.current_step_retries = 0
+
 
     @classmethod
     def from_config(cls, config: DefaultAgentConfig) -> Self:
@@ -1166,6 +1169,11 @@ class DefaultAgent(AbstractAgent):
         Returns:
             step_output: step output
         """
+        # Add logging to show the current max_requeries setting
+        self.logger.info(f"Agent {self.name} has max_requeries set to {self.max_requeries} this time")
+
+        # Reset retry counter at the start of each forward call
+        self.current_step_retries = 0
 
         def handle_error_with_autosubmission(exit_status: str, message: str) -> StepOutput:
             """Attempts to autosubmit (extract patch from the environment) and stops the loop."""
@@ -1211,33 +1219,40 @@ class DefaultAgent(AbstractAgent):
 
             except FormatError as e:
                 n_format_fails += 1
+                self.current_step_retries += 1
                 history = handle_error_with_retry(
                     exception=e, template=self.tools.config.format_error_template, n_requeries=n_format_fails
                 )
             except _BlockedActionError as e:
                 n_format_fails += 1
+                self.current_step_retries += 1
                 history = handle_error_with_retry(
                     exception=e, template=self.tools.config.filter.blocklist_error_template, n_requeries=n_format_fails
                 )
             except ContentPolicyViolationError:
                 self.logger.warning("Content policy violation, trying to resample")
                 n_format_fails += 1
+                self.current_step_retries += 1
                 # Try if simply resampling helps here
                 pass
             except BashIncorrectSyntaxError as e:
                 n_format_fails += 1
+                self.current_step_retries += 1
                 history = handle_error_with_retry(
                     exception=e,
                     template=self.templates.shell_check_error_template,
                     n_requeries=n_format_fails,
                 )
             except _RetryWithOutput as e:
+                n_format_fails += 1
+                self.current_step_retries += 1
                 history = handle_error_with_retry(
                     exception=e,
                     template=self.templates.next_step_template,
                     n_requeries=n_format_fails,
                 )
             except _RetryWithoutOutput:
+                self.current_step_retries += 1
                 pass
                 # Requery with the same template as the last step
 
@@ -1340,6 +1355,7 @@ class DefaultAgent(AbstractAgent):
         self._chook.on_step_start()
 
         n_step = len(self.trajectory) + 1
+        
         self.logger.info("=" * 25 + f" STEP {n_step} " + "=" * 25)
         ####### This is the actual step where the agent queries the model #########
         # Forward with handling

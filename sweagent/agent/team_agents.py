@@ -417,100 +417,139 @@ class Team(AbstractAgent):
         # Determine which agent should take this step
         agent = self._get_next_agent()
         agent_turns = self.agent_consecutive_turns.get(agent.name, 0)
+        remaining_turns = self._get_remaining_turns(agent.name)
+
+        # Set dynamic max_requeries based on remaining turns
+        # Store original value to restore it later
+        original_max_requeries = agent.max_requeries
+        
+        # Set dynamic max_requeries based on remaining turns
+        # If this is the last turn, limit to 1 retry
+        if remaining_turns < 1:
+            agent.max_requeries = 1
+            self.logger.info(f"Agent {agent.name} is on last turn, limiting max_requeries to 1")
+        else:
+            agent.max_requeries = min(original_max_requeries, remaining_turns)
         
         # Increment team step counter for continuous step numbering
         self.team_step_count += 1
         self.logger.info(f"Agent {agent.name} is taking a step (team step {self.team_step_count}, agent turn {agent_turns})")
         
-        # Have the current agent take a step
-        step_raw = agent.step()
-        
-        # Ensure we have a proper StepOutput object, not a dictionary
-        if isinstance(step_raw, dict):
-            step_output = StepOutput(**step_raw)
-            self.logger.warning(f"Agent {agent.name} returned a dictionary instead of StepOutput object. Converting to StepOutput.")
-        else:
-            step_output = step_raw
-        
-        # Check if the agent requested a handoff
-        handoff_requested = self._check_for_handoff(step_output)
-        if handoff_requested:
-            # Force rotation to the next agent on the next step by maxing out this agent's turns
-            agent_max_turns = getattr(agent, "max_consecutive_turns", self.max_consecutive_turns)
-            self.agent_consecutive_turns[agent.name] = agent_max_turns
-            self.logger.info(f"Agent {agent.name} explicitly requested handoff to next agent")
-        
-        # Share step information with other agents based on the source agent's sharing preferences
-        to_share_content = f"[{agent.name}]: {step_output.thought}"
-        to_share_step = copy.deepcopy(step_output)
-        to_share_step.output = to_share_content # change output because output is the thing that the agent will actually query about, while thought is just for showing.
-        for other_agent in self.agents:
-            if other_agent != agent:
-                # Check if handoff was requested - if so, always share full context
-                # Otherwise use the agent's default sharing preference
-                if handoff_requested:
-                    # When handoff is used, share full context (not just tool results)
-                    self.logger.debug(f"Agent {agent.name} used handoff, sharing full context with {other_agent.name}")
-                    # Create a special history entry for handoff
-                    other_agent.add_step_to_history(to_share_step, name=agent.name)
-                elif hasattr(agent, "share_only_tool_results") and agent.share_only_tool_results:
-                    # Only share observation/tool results, not the agent's messages requesting the tools
-                    self._share_tool_results_only(agent, other_agent, to_share_step)
-                    self.logger.debug(f"Agent {agent.name} shared only tool results with {other_agent.name}")
-                else:
-                    # For agents with not_using_tools=True (like navigator), don't share any context
-                    # to avoid creating a mock tool execution result in the other agent's history
-                    if hasattr(agent, 'not_using_tools') and agent.not_using_tools:
-                        # Create a minimal history entry with just the thought
-                        # This avoids the "Your command ran successfully..." log message
-                        other_agent._append_history({
-                            "role": "assistant",
-                            "content": to_share_step.thought,
-                            "thought": to_share_step.thought,
-                            "action": "",
-                            "agent": agent.name,  # Use the source agent's name
-                            "message_type": "non_tool_thought",
-                        })
-                        self.logger.debug(f"Agent {agent.name} shared only thought with {other_agent.name} (no tool execution)")
-                    else:
-                        # Share full step output including agent reasoning for normal agents
-                        # step_copy = copy.deepcopy(to_share_step)
-                        
-                        # If the source agent doesn't use tools but the target agent does,
-                        # we need to ensure we don't pass empty tool_calls arrays to Azure OpenAI
-                        if hasattr(agent, 'not_using_tools') and agent.not_using_tools:
-                            # Remove tool_calls and tool_call_ids to prevent Azure API errors
-                            if hasattr(to_share_step, 'tool_calls'):
-                                delattr(to_share_step, 'tool_calls')
-                            if hasattr(to_share_step, 'tool_call_ids'):
-                                delattr(to_share_step, 'tool_call_ids')
-                    
-                        other_agent.add_step_to_history(to_share_step, name=agent.name)
-                        self.logger.debug(f"Agent {agent.name} shared full context with {other_agent.name}")
-        
-        # Update shared trajectory
-        # We only add the latest step to avoid duplication
-        if agent.trajectory and len(agent.trajectory) > 0:
-            # Add only the last step from the agent's trajectory
-            self._trajectory.append(agent.trajectory[-1])
+        try:
+            # Have the current agent take a step
+            step_raw = agent.step()
+
+            # Check if there were retries
+            if hasattr(agent, 'current_step_retries') and agent.current_step_retries > 0:
+                self.logger.info(f"Agent {agent.name} had {agent.current_step_retries} retries during this step")
+                # update the team step count
+                self.team_step_count += agent.current_step_retries
+                self.logger.info(f"Updated team step count to {self.team_step_count} due to retries")
+                # Count retries toward the turn limit (more aggressive handoff)
+                self.agent_consecutive_turns[agent.name] += min(agent.current_step_retries, 1)  # Count at most 1 extra turn
             
-        # Update info with key fields from the current agent's step
-        # AgentInfo is a Pydantic model, so we should use attribute access
-        # StepOutput should always be handled as an object with attributes
-        if hasattr(step_output, 'submission') and step_output.submission:
-            self.info["submission"] = step_output.submission
-        if hasattr(step_output, 'exit_status') and step_output.exit_status:
-            self.info["exit_status"] = step_output.exit_status
-        
-        # Also update model stats if available from the agent
-        if hasattr(agent.model, "stats"):
-            self.info["model_stats"] = agent.model.stats.model_dump()
-        
-        # Trigger hook
-        self._chook.on_step_done(step=step_output, info=self.info)
-        
-        return step_output
+            # Ensure we have a proper StepOutput object, not a dictionary
+            if isinstance(step_raw, dict):
+                step_output = StepOutput(**step_raw)
+                self.logger.warning(f"Agent {agent.name} returned a dictionary instead of StepOutput object. Converting to StepOutput.")
+            else:
+                step_output = step_raw
+            
+            # Check if the agent requested a handoff
+            handoff_requested = self._check_for_handoff(step_output)
+            if handoff_requested:
+                # Force rotation to the next agent on the next step by maxing out this agent's turns
+                agent_max_turns = getattr(agent, "max_consecutive_turns", self.max_consecutive_turns)
+                self.agent_consecutive_turns[agent.name] = agent_max_turns
+                self.logger.info(f"Agent {agent.name} explicitly requested handoff to next agent")
+            
+            # Share step information with other agents based on the source agent's sharing preferences
+            to_share_content = f"[{agent.name}]: {step_output.thought}"
+            to_share_step = copy.deepcopy(step_output)
+            to_share_step.output = to_share_content # change output because output is the thing that the agent will actually query about, while thought is just for showing.
+            for other_agent in self.agents:
+                if other_agent != agent:
+                    # Check if handoff was requested - if so, always share full context
+                    # Otherwise use the agent's default sharing preference
+                    if handoff_requested:
+                        # When handoff is used, share full context (not just tool results)
+                        self.logger.debug(f"Agent {agent.name} used handoff, sharing full context with {other_agent.name}")
+                        # Create a special history entry for handoff
+                        other_agent.add_step_to_history(to_share_step, name=agent.name)
+                    elif hasattr(agent, "share_only_tool_results") and agent.share_only_tool_results:
+                        # Only share observation/tool results, not the agent's messages requesting the tools
+                        self._share_tool_results_only(agent, other_agent, to_share_step)
+                        self.logger.debug(f"Agent {agent.name} shared only tool results with {other_agent.name}")
+                    else:
+                        # For agents with not_using_tools=True (like navigator), don't share any context
+                        # to avoid creating a mock tool execution result in the other agent's history
+                        if hasattr(agent, 'not_using_tools') and agent.not_using_tools:
+                            # Create a minimal history entry with just the thought
+                            # This avoids the "Your command ran successfully..." log message
+                            other_agent._append_history({
+                                "role": "assistant",
+                                "content": to_share_step.thought,
+                                "thought": to_share_step.thought,
+                                "action": "",
+                                "agent": agent.name,  # Use the source agent's name
+                                "message_type": "non_tool_thought",
+                            })
+                            self.logger.debug(f"Agent {agent.name} shared only thought with {other_agent.name} (no tool execution)")
+                        else:
+                            # Share full step output including agent reasoning for normal agents
+                            # step_copy = copy.deepcopy(to_share_step)
+                            
+                            # If the source agent doesn't use tools but the target agent does,
+                            # we need to ensure we don't pass empty tool_calls arrays to Azure OpenAI
+                            if hasattr(agent, 'not_using_tools') and agent.not_using_tools:
+                                # Remove tool_calls and tool_call_ids to prevent Azure API errors
+                                if hasattr(to_share_step, 'tool_calls'):
+                                    delattr(to_share_step, 'tool_calls')
+                                if hasattr(to_share_step, 'tool_call_ids'):
+                                    delattr(to_share_step, 'tool_call_ids')
+                        
+                            other_agent.add_step_to_history(to_share_step, name=agent.name)
+                            self.logger.debug(f"Agent {agent.name} shared full context with {other_agent.name}")
+            
+            # Update shared trajectory
+            # We only add the latest step to avoid duplication
+            if agent.trajectory and len(agent.trajectory) > 0:
+                # Add only the last step from the agent's trajectory
+                self._trajectory.append(agent.trajectory[-1])
+                
+            # Update info with key fields from the current agent's step
+            # AgentInfo is a Pydantic model, so we should use attribute access
+            # StepOutput should always be handled as an object with attributes
+            if hasattr(step_output, 'submission') and step_output.submission:
+                self.info["submission"] = step_output.submission
+            if hasattr(step_output, 'exit_status') and step_output.exit_status:
+                self.info["exit_status"] = step_output.exit_status
+            
+            # Also update model stats if available from the agent
+            if hasattr(agent.model, "stats"):
+                self.info["model_stats"] = agent.model.stats.model_dump()
+            
+            # Trigger hook
+            self._chook.on_step_done(step=step_output, info=self.info)
+            
+            return 
+        finally:
+            # Restore original max_requeries
+            agent.max_requeries = original_max_requeries
     
+    def _get_remaining_turns(self, agent_name: str) -> int:
+        """Calculate how many more consecutive turns an agent can take.
+        
+        Args:
+            agent_name: Name of the agent
+            
+        Returns:
+            Number of remaining turns before handoff
+        """
+        current_turns = self.agent_consecutive_turns.get(agent_name, 0)
+        max_turns = self.agent_max_consecutive_turns.get(agent_name, self.max_consecutive_turns)
+        return max(0, max_turns - current_turns)
+
     def get_trajectory_data(self) -> Dict[str, Any]:
         """Get all data that we save in .traj files.
         
