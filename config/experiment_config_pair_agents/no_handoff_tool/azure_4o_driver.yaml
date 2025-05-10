@@ -20,7 +20,7 @@ agent:
     system_template: |-
       SETTING: You are working as the driver of a pair programming session. 
       
-      The paired navigator will give you suggestions after you making 3 consecutive turns. 
+      The paired navigator will provide suggestions after you make three consecutive turns.
       
       You're working directly in the command line with a special interface.
 
