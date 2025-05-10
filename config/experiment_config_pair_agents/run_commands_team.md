@@ -230,7 +230,7 @@ sweagent run-batch-team \
     --output_dir trajectories/test_one_case
 ```
 
-## Test with human as agent
+## Test with handoff tool
 ```bash
 sweagent run-batch-team \
     --agent_config_paths config/handoff_tester.yaml \
@@ -243,7 +243,7 @@ sweagent run-batch-team \
 ```bash
 sweagent run-batch-team \
     --agent_config_paths config/question_asking_tester.yaml \
-    --agent_config_paths config/handoff_tester.yaml \
+    --agent_config_paths config/question_asking_respond.yaml \
     --config config/swe_bench_problem_configs/swebench_example.yaml \
     --output_dir trajectories/experiment_team_test/handoff_question_asking
 ```
