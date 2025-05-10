@@ -12,7 +12,7 @@ from typing_extensions import Self
 
 from sweagent.environment.swe_env import SWEEnv
 from sweagent.tools.bundle import Bundle
-from sweagent.tools.commands import BASH_COMMAND, HANDOFF_COMMAND, Command
+from sweagent.tools.commands import BASH_COMMAND, HANDOFF_COMMAND, ASK_QUESTION_COMMAND, Command
 from sweagent.tools.parsing import FunctionCallingParser, JsonParser, ParseFunction
 from sweagent.tools.utils import _guard_multiline_input, generate_command_docs
 from sweagent.utils.log import get_logger
@@ -74,6 +74,7 @@ class ToolConfig(BaseModel):
 
     enable_bash_tool: bool = True
     enable_handoff_tool: bool = False
+    enable_ask_question_tool: bool = False
 
     format_error_template: str = None  # type: ignore
     """Defaults to format_error_template in ParseFunction"""
@@ -129,6 +130,11 @@ class ToolConfig(BaseModel):
         if self.enable_handoff_tool:
             commands.append(HANDOFF_COMMAND)
             tool_sources[HANDOFF_COMMAND.name] = Path("<builtin>")
+            
+        # Add ask_question command if enabled
+        if self.enable_ask_question_tool:
+            commands.append(ASK_QUESTION_COMMAND)
+            tool_sources[ASK_QUESTION_COMMAND.name] = Path("<builtin>")
 
         # Collect commands from all bundles
         for bundle in self.bundles:
@@ -170,6 +176,12 @@ class ToolConfig(BaseModel):
             isinstance(self.parse_function, FunctionCallingParser) or isinstance(self.parse_function, JsonParser)
         ):
             msg = f"Handoff tool can only be disabled if {FunctionCallingParser.type} parser or {JsonParser.type} parser is used."
+            raise ValueError(msg)
+            
+        if not self.enable_ask_question_tool and not (
+            isinstance(self.parse_function, FunctionCallingParser) or isinstance(self.parse_function, JsonParser)
+        ):
+            msg = f"Ask question tool can only be disabled if {FunctionCallingParser.type} parser or {JsonParser.type} parser is used."
             raise ValueError(msg)
 
         self.multi_line_command_endings = multi_line_command_endings
@@ -234,7 +246,7 @@ class ToolHandler:
 
     async def _is_command_available(self, env, command: str, env_vars: dict[str, str]) -> None:
         # Skip verification for built-in virtual tools
-        if command == "bash" or command == "handoff":
+        if command == "bash" or command == "handoff" or command == "ask_question":
             return
         try:
             await env.deployment.runtime.execute(

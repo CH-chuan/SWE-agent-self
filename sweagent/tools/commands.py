@@ -229,3 +229,24 @@ HANDOFF_COMMAND = Command(
         )
     ],
 )
+
+# Ask question tool for team agents
+ASK_QUESTION_COMMAND = Command(
+    name="ask_question",
+    signature="<question> <target_agent>",
+    docstring="Ask a question to another agent in the team without transferring control",
+    arguments=[
+        Argument(
+            name="question",
+            type="string",
+            description="The question to ask the target agent.",
+            required=True,
+        ),
+        Argument(
+            name="target_agent",
+            type="string",
+            description="The name of the agent to ask the question to. If not specified, the question will be directed to any available agent.",
+            required=False,
+        )
+    ],
+)

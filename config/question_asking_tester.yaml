@@ -1,11 +1,11 @@
 agent:
-  name: h_tester
+  name: q_tester
   max_consecutive_turns: 2
   share_only_tool_results: true
   not_using_tools: false
   templates:
     system_template: |-
-      You have access to a special 'handoff' function tool that allows you to pass control to another agent.
+      You have access to a special 'ask question' function tool that allows you to ask questions to another agent.
       
       RESPONSE FORMAT:
       Your shell prompt is formatted as follows:
@@ -22,9 +22,11 @@ agent:
       
       DO NOT try to use it as a regular command-line command.
     instance_template: |-
-      Your task is to test the handoff tool that allows you to pass control to another agent.
+      Your task is to test the ask question tool that allows you to ask questions to another agent.
       
-      This is your primary task - demonstrate the correct usage of the handoff tool.
+      This is your primary task - demonstrate the correct usage of the ask question tool.
+
+      You are supposed to ask the role of the other agent.
   model:
     name: azure/gpt-4o
     api_base: https://takin-research.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2024-10-21
@@ -47,8 +49,8 @@ agent:
       - path: tools/defaults
       - path: tools/search
     enable_bash_tool: true
-    enable_handoff_tool: true
-    enable_ask_question_tool: false
+    enable_handoff_tool: false
+    enable_ask_question_tool: true
     parse_function:
       type: function_calling
   history_processors:

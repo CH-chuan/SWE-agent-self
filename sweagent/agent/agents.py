@@ -490,6 +490,10 @@ class DefaultAgent(AbstractAgent):
 
         # Attribute for tracking retries of the current step
         self.current_step_retries = 0
+        
+        # Attributes for handling question responses in team settings
+        self.responding_to_question = False
+        self.question_from_agent = None
 
 
     @classmethod
@@ -993,35 +997,61 @@ class DefaultAgent(AbstractAgent):
                     assert self._env is not None
                     step.state = self.tools.get_state(env=self._env)  # for history
                     return step
+                elif tool_call['function']['name'].lower() == 'ask_question':
+                    # Process ask_question tool
+                    question = ""
+                    target_agent = ""
+                    try:
+                        args = tool_call['function']['arguments']
+                        if isinstance(args, str):
+                            args = json.loads(args)
+                        elif isinstance(args, dict):
+                            pass  # Already a dict
+                        else:
+                            args = {}
+                        question = args.get('question', '')
+                        target_agent = args.get('target_agent', '')
+                    except Exception as e:
+                        self.logger.warning(f"Error parsing ask_question arguments: {e}")
+                    
+                    # Set a successful observation for the ask_question
+                    if target_agent:
+                        step.observation = f"Question asked to {target_agent}: {question}"
+                    else:
+                        step.observation = f"Question asked: {question}"
+                    self.logger.info(f"Ask question tool used: {step.observation}")
+                    assert self._env is not None
+                    step.state = self.tools.get_state(env=self._env)  # for history
+                    return step
             except Exception as e:
                 self.logger.error(f"Error handling special tool: {e}")
                 # Fall through to regular processing if special tool handling fails
         
         # Our existing special case for tool_calls in step (keeping this as backup)
-        if hasattr(step, 'tool_calls') and step.tool_calls:
-            for tool_call in step.tool_calls:
-                if tool_call.get('name', '').lower() == 'handoff':
-                    # This is a handoff tool call - don't execute it as a bash command
-                    message = ""
-                    try:
-                        args = tool_call.get('arguments', {})
-                        if isinstance(args, str):
-                            # Parse JSON string arguments
-                            import json
-                            args = json.loads(args)
-                        message = args.get('message', '')
-                    except Exception:
-                        pass  # Ignore parsing errors
+        # if hasattr(step, 'tool_calls') and step.tool_calls:
+        #     for tool_call in step.tool_calls:
+        #         if tool_call.get('name', '').lower() == 'handoff':
+        #             # This is a handoff tool call - don't execute it as a bash command
+        #             message = ""
+        #             try:
+        #                 args = tool_call.get('arguments', {})
+        #                 if isinstance(args, str):
+        #                     # Parse JSON string arguments
+        #                     import json
+        #                     args = json.loads(args)
+        #                 message = args.get('message', '')
+        #             except Exception:
+        #                 pass  # Ignore parsing errors
                     
-                    # Set a successful observation for the handoff
-                    if message:
-                        step.observation = f"Handoff requested with message: {message}"
-                    else:
-                        step.observation = "Handoff requested"
-                    self.logger.info(f"Handoff tool used: {step.observation}")
-                    assert self._env is not None
-                    step.state = self.tools.get_state(env=self._env)  # for history
-                    return step
+        #             # Set a successful observation for the handoff
+        #             if message:
+        #                 step.observation = f"Handoff requested with message: {message}"
+        #             else:
+        #                 step.observation = "Handoff requested"
+        #             self.logger.info(f"Handoff tool used: {step.observation}")
+        #             assert self._env is not None
+        #             step.state = self.tools.get_state(env=self._env)  # for history
+        #             return step
         
         if self.tools.should_block_action(step.action):
             raise _BlockedActionError()
@@ -1206,7 +1236,7 @@ class DefaultAgent(AbstractAgent):
             )
 
         n_format_fails = 0
-        while n_format_fails < self.max_requeries:
+        while n_format_fails <= self.max_requeries:
             try:
                 return self.forward(history)
 
@@ -1315,13 +1345,14 @@ class DefaultAgent(AbstractAgent):
                     "exit_error",
                     f"Exit due to unknown error: {e}",
                 )
-        self.logger.exception(
-            "Exit due to repeated format/blocklist/bash syntax errors",
-            exc_info=True,
-        )
-        return handle_error_with_autosubmission(
-            "exit_format",
-            "Exit due to repeated format/blocklist/bash syntax errors",
+        # After max retries are reached, return a special StepOutput instead of exiting
+        self.logger.error("Max retries reached, turn to next agent")
+        return StepOutput(
+            thought="Max retries reached, handing off to next agent",
+            action="",
+            observation="Max retries reached. The current agent was unable to resolve the error after multiple attempts.",
+            done=False,  # Important: don't mark as done so the run continues
+            exit_status="max_retries_reached"
         )
 
     def add_step_to_trajectory(self, step: StepOutput) -> None:

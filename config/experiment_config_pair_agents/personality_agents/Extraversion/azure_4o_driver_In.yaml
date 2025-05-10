@@ -114,7 +114,8 @@ agent:
       - path: tools/edit_replace
       - path: tools/submit
     enable_bash_tool: true
-    enable_handoff_tool: true
+    enable_handoff_tool: false
+    enable_ask_question_tool: true
     parse_function:
       type: function_calling
   history_processors:

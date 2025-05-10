@@ -1,6 +1,3 @@
-env:
-  deployment:
-    image: python:3.11
 agent:
   tools:
     env_variables:
@@ -14,7 +11,8 @@ agent:
       - path: tools/edit_replace
       - path: tools/submit
     enable_bash_tool: true
-    enable_handoff_tool: true
+    enable_handoff_tool: false
+    enable_ask_question_tool: true
     parse_function:
       type: thought_action
   history_processors:
@@ -22,3 +20,6 @@ agent:
       n: 5
   model:
     name: human
+  max_consecutive_turns: 3
+  share_only_tool_results: true
+  not_using_tools: false

@@ -331,11 +331,11 @@ class FunctionCallingParser(AbstractParseFunction, BaseModel):
             raise FunctionCallingFormatError(msg, error_code, num_tools=num_tools)
         
         tool_call = tool_calls[0]
-        # For special tools like handoff, preserve the original tool call structure
+        # For special tools like handoff and ask_question, preserve the original tool call structure
         # to be processed by specialized handlers in handle_action
-        if tool_call["function"]["name"].lower() == "handoff":
-            # Special case: Return original formatted tool call for handoff
-            # The actual handling will be done in handle_action
+        if tool_call["function"]["name"].lower() in ["handoff", "ask_question"]:
+            # Special case: Return original formatted tool call for special tools
+            # The actual handling will be done in handle_action or team agent methods
             tool_call_info = f"__SPECIAL_TOOL__{json.dumps(tool_call)}"
             return message, tool_call_info
         

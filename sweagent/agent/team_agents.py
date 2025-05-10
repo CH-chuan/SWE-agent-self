@@ -273,6 +273,78 @@ class Team(AbstractAgent):
             
             self.logger.debug(f"Shared environmental observation from {source_agent.name} to {target_agent.name}")
     
+    def _check_for_question(self, step_output: StepOutput) -> tuple[bool, str, str]:
+        """Check if the agent has asked a question to another agent.
+        
+        Args:
+            step_output: The step output to check for ask_question tool calls
+            
+        Returns:
+            Tuple of (question_asked, question, target_agent)
+            - question_asked: True if a question was asked, False otherwise
+            - question: The question that was asked (empty string if no question)
+            - target_agent: The name of the target agent (empty string if not specified)
+        """
+        # Get the current agent
+        current_agent = self.agents[self.current_agent_idx]
+        
+        # Check if ask_question is enabled for this agent
+        ask_question_enabled = True
+        if hasattr(current_agent, 'config') and hasattr(current_agent.config, 'tools'):
+            ask_question_enabled = getattr(current_agent.config.tools, 'enable_ask_question_tool', True)
+            
+        # If ask_question is disabled for this agent, always return False
+        if not ask_question_enabled:
+            self.logger.debug(f"Ask question tool is disabled for agent {current_agent.name}")
+            return False, "", ""
+            
+        # Check if there are any tool calls in the step_output
+        # Handle both dictionary and object types for step_output
+        tool_calls = None
+        
+        # Get tool_calls based on the type of step_output
+        if isinstance(step_output, dict):
+            tool_calls = step_output.get("tool_calls", None)
+        else:  # Object attribute access
+            tool_calls = getattr(step_output, "tool_calls", None)
+            
+        if not tool_calls:
+            return False, "", ""
+        
+        # self.logger.debug(f"Found tool calls: {tool_calls}")
+
+        # Look for an ask_question tool call
+        # tool calls: [{'function': {'arguments': '{"question":"What is your role in this environment?"}', 'name': 'ask_question'}, 'id': 'call_T05S4R4qRHZB9bfWb9bvMP6c', 'type': 'function'}]
+        for tool_call in tool_calls:
+            if tool_call.get("function", {}).get("name", "").lower() == "ask_question":
+                question = ""
+                target_agent = ""
+                
+                # Extract the question and target_agent if provided
+                try:
+                    if isinstance(tool_call.get("function", {}).get("arguments"), dict):
+                        question = tool_call.get("function", {}).get("arguments", {}).get("question", "")
+                        target_agent = tool_call.get("function", {}).get("arguments", {}).get("target_agent", "")
+                    elif isinstance(tool_call.get("function", {}).get("arguments"), str):
+                        # Try to parse JSON string arguments
+                        import json
+                        args = json.loads(tool_call.get("function", {}).get("arguments", "{}"))
+                        question = args.get("question", "")
+                        target_agent = args.get("target_agent", "")
+                except Exception as e:
+                    self.logger.warning(f"Error parsing ask_question arguments: {e}")
+                    return False, "", ""
+                # self.logger.debug(f"Question: {question}, Target Agent: {target_agent}")
+                
+                if question:
+                    if target_agent:
+                        self.logger.info(f"Agent {current_agent.name} asked question to {target_agent}: {question}")
+                    else:
+                        self.logger.info(f"Agent {current_agent.name} asked question to any agent: {question}")
+                    return True, question, target_agent
+                    
+        return False, "", ""
+    
     def _check_for_handoff(self, step_output: StepOutput) -> bool:
         """Check if the agent has requested a handoff to the next agent.
         
@@ -301,6 +373,8 @@ class Team(AbstractAgent):
             action = step_output.get("action", "")
         else:  # Object attribute access
             action = getattr(step_output, "action", "")
+        
+        # self.logger.debug(f"Action: {action}")
         
         # Check if the action is our special tool format for handoff
         if action and isinstance(action, str) and action.startswith("__SPECIAL_TOOL__"):
@@ -400,7 +474,7 @@ class Team(AbstractAgent):
         
         # Reset the consecutive turns counter for the new agent
         self.agent_consecutive_turns[next_agent.name] = 1
-        self.logger.info(f"Switching to agent {next_agent.name} after {agent_max_consecutive_turns} consecutive turns")
+        self.logger.info(f"Switching to agent {next_agent.name}")
         
         return self.agents[self.current_agent_idx]
     
@@ -418,6 +492,9 @@ class Team(AbstractAgent):
         agent = self._get_next_agent()
         agent_turns = self.agent_consecutive_turns.get(agent.name, 0)
         remaining_turns = self._get_remaining_turns(agent.name)
+        
+        # Check if this agent is responding to a question
+        is_responding_to_question = hasattr(agent, 'responding_to_question') and agent.responding_to_question
 
         # Set dynamic max_requeries based on remaining turns
         # Store original value to restore it later
@@ -455,6 +532,59 @@ class Team(AbstractAgent):
             else:
                 step_output = step_raw
             
+            # Check if the agent asked a question
+            question_asked, question, target_agent = self._check_for_question(step_output)
+            if question_asked:
+                # Find the target agent to ask the question to
+                target_agent_obj = None
+                if target_agent:
+                    # Find the agent with the matching name
+                    for a in self.agents:
+                        if a.name == target_agent:
+                            target_agent_obj = a
+                            break
+                    
+                    if not target_agent_obj:
+                        self.logger.warning(f"Target agent {target_agent} not found, using next agent")
+                        # Fall back to the next agent in rotation
+                        next_idx = (self.current_agent_idx + 1) % len(self.agents)
+                        target_agent_obj = self.agents[next_idx]
+                else:
+                    # No target specified, use the next agent in rotation
+                    next_idx = (self.current_agent_idx + 1) % len(self.agents)
+                    target_agent_obj = self.agents[next_idx]
+                
+                # Add the question to the target agent's history
+                if target_agent_obj:
+                    # Create a special history entry for the question
+                    target_agent_obj._append_history({
+                        "role": "user",
+                        "content": f"[Question from {agent.name}]: {question}",
+                        "agent": agent.name,
+                        "message_type": "question",
+                    })
+                    
+                    # Force the next step to be taken by the target agent
+                    # Similar to handoff, force rotation by maxing out the current agent's turns
+                    agent_max_turns = getattr(agent, "max_consecutive_turns", self.max_consecutive_turns)
+                    self.agent_consecutive_turns[agent.name] = agent_max_turns
+                    
+                    # Directly set the current_agent_idx to the target agent
+                    # When _get_next_agent is called, it will see that the current agent has reached max turns
+                    # and will rotate to the next agent, so we need to position the index accordingly
+                    target_idx = self.agents.index(target_agent_obj)
+                    # Set current_agent_idx to the agent before the target agent
+                    self.current_agent_idx = (target_idx - 1) % len(self.agents)
+                    # Reset the consecutive turns counter for the target agent to 0
+                    # It will be incremented to 1 in _get_next_agent
+                    self.agent_consecutive_turns[target_agent_obj.name] = 0
+                    
+                    # Add a pending response flag to indicate this agent is responding to a question
+                    target_agent_obj.responding_to_question = True
+                    target_agent_obj.question_from_agent = agent.name
+                    
+                    self.logger.info(f"Question from {agent.name} directed to {target_agent_obj.name}, who will respond in the next step")
+            
             # Check if the agent requested a handoff
             handoff_requested = self._check_for_handoff(step_output)
             if handoff_requested:
@@ -463,12 +593,43 @@ class Team(AbstractAgent):
                 self.agent_consecutive_turns[agent.name] = agent_max_turns
                 self.logger.info(f"Agent {agent.name} explicitly requested handoff to next agent")
             
+            # Handle question response if this agent is responding to a question
+            if is_responding_to_question and hasattr(agent, 'question_from_agent') and agent.question_from_agent:
+                # Find the agent who asked the question
+                asking_agent = None
+                for a in self.agents:
+                    if a.name == agent.question_from_agent:
+                        asking_agent = a
+                        break
+                
+                if asking_agent:
+                    # Add the response to the asking agent's history
+                    asking_agent._append_history({
+                        "role": "user",
+                        "content": f"[Response from {agent.name}]: {step_output.thought}",
+                        "agent": agent.name,
+                        "message_type": "response",
+                    })
+                    
+                    self.logger.info(f"Agent {agent.name} responded to question from {agent.question_from_agent}")
+                    
+                    # Store the asking agent info before resetting flags
+                    # (we'll need this for context sharing and control transfer)
+                    asking_agent_name = agent.question_from_agent
+                    asking_agent_index = self.agents.index(asking_agent)
+            
             # Share step information with other agents based on the source agent's sharing preferences
             to_share_content = f"[{agent.name}]: {step_output.thought}"
             to_share_step = copy.deepcopy(step_output)
             to_share_step.output = to_share_content # change output because output is the thing that the agent will actually query about, while thought is just for showing.
             for other_agent in self.agents:
                 if other_agent != agent:
+                    # Skip sharing with the asking agent if this was a response to a question
+                    # (we already added the response above)
+                    if is_responding_to_question and hasattr(agent, 'question_from_agent') and agent.question_from_agent:
+                        if other_agent.name == agent.question_from_agent:
+                            continue
+                    
                     # Check if handoff was requested - if so, always share full context
                     # Otherwise use the agent's default sharing preference
                     if handoff_requested:
@@ -511,6 +672,22 @@ class Team(AbstractAgent):
                             other_agent.add_step_to_history(to_share_step, name=agent.name)
                             self.logger.debug(f"Agent {agent.name} shared full context with {other_agent.name}")
             
+            # After context sharing, reset question flags and transfer control if this was a response to a question
+            if is_responding_to_question and hasattr(agent, 'responding_to_question') and agent.responding_to_question:
+                # Reset the responding flags
+                agent.responding_to_question = False
+                agent.question_from_agent = None
+                
+                # Return control to the asking agent for the next step
+                # Similar to how we handle question asking, set the current_agent_idx to the agent before the asking agent
+                asking_agent_idx = self.agents.index(asking_agent)
+                # Set current_agent_idx to the agent before the asking agent
+                self.current_agent_idx = (asking_agent_idx - 1) % len(self.agents)
+                # Reset the consecutive turns counter for the asking agent to 0
+                # It will be incremented to 1 in _get_next_agent
+                self.agent_consecutive_turns[asking_agent_name] = 0
+                self.logger.debug(f"Control returned to {asking_agent_name} after question response")
+            
             # Update shared trajectory
             # We only add the latest step to avoid duplication
             if agent.trajectory and len(agent.trajectory) > 0:
@@ -532,7 +709,7 @@ class Team(AbstractAgent):
             # Trigger hook
             self._chook.on_step_done(step=step_output, info=self.info)
             
-            return 
+            return step_output
         finally:
             # Restore original max_requeries
             agent.max_requeries = original_max_requeries
