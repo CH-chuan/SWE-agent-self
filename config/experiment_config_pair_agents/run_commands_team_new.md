@@ -299,7 +299,7 @@ nohup sweagent run-batch-team \
   > trajectories/experiment_team/4o_personality_UnopenOpen.log 2>&1 &
 ```
 
-round 2
+round 2 (finished)
 ```bash
 nohup sweagent run-batch-team \
     --agent_config_paths config/experiment_config_pair_agents/personality_agents/Openness/azure_4o_driver_Unopen.yaml \
