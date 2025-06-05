@@ -2,10 +2,10 @@
 
 # === CONFIGURATION ===
 
-TARGET_PID=384526
+TARGET_PID=507751
 
-INITIAL_SLEEP_SECONDS=$((2 * 60 * 60))  # Start with 4 hours
-MIN_SLEEP_SECONDS=$((15 * 60))                    # Don't go below 15 minutes
+INITIAL_SLEEP_SECONDS=$((30 * 60))  # Start with 20 minutes
+MIN_SLEEP_SECONDS=$((5 * 60))                    # Don't go below 3 minutes
 DECAY_FACTOR=0.3
 
 # === FUNCTION TO CHECK IF PROCESS IS RUNNING ===
@@ -31,11 +31,11 @@ while true; do
         echo "[$(date)] Process $TARGET_PID has finished. Launching new command..."
 
         nohup sweagent run-batch-team \
-            --agent_config_paths config/experiment_config_pair_agents/personality_agents/Agreeableness/azure_4o_driver_Unagr.yaml \
-            --agent_config_paths config/experiment_config_pair_agents/personality_agents/Agreeableness/azure_4o_navigator_Agr.yaml \
-            --config config/experiment_config_pair_agents/swebench_tasks.yaml \
-            --output_dir trajectories/experiment_team/4o_personality_UnagrAgr \
-          > trajectories/experiment_team/4o_personality_UnagrAgr.log 2>&1 &
+            --agent_config_paths config/experiment_config_pair_agents/personality_agents/Openness/azure_4o_driver_Unopen.yaml \
+            --agent_config_paths config/experiment_config_pair_agents/personality_agents/Openness/azure_4o_navigator_Open.yaml \
+            --config config/experiment_config_pair_agents/swebench_tasks_new.yaml \
+            --output_dir trajectories/experiment_team/4o_personality_UnopenOpen \
+        > trajectories/experiment_team/4o_personality_UnopenOpen.log 2>&1 &
 
         NEW_PID=$!
         echo "New process started with PID $NEW_PID"

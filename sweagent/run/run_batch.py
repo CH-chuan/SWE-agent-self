@@ -377,7 +377,8 @@ class RunBatch:
             return False
 
         # Check if there's an existing trajectory for this instance
-        log_path = self.output_dir / instance.problem_statement.id / (instance.problem_statement.id + ".traj")
+        pid = instance.problem_statement.id
+        log_path = self.output_dir / pid / (pid + "_team_" + pid + ".traj.json")
         if not log_path.exists():
             return False
 
