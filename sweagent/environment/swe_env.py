@@ -6,7 +6,7 @@ from typing import Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field
 from swerex.deployment.abstract import AbstractDeployment
-from swerex.deployment.config import DeploymentConfig, DockerDeploymentConfig, get_deployment
+from swerex.deployment.config import DockerDeploymentConfig, get_deployment
 from swerex.runtime.abstract import (
     BashAction,
     BashInterruptAction,
@@ -15,6 +15,9 @@ from swerex.runtime.abstract import (
     WriteFileRequest,
 )
 from swerex.runtime.abstract import Command as RexCommand
+
+from sweagent.environment.apptainer_support.config import ApptainerDeploymentConfig, DeploymentConfig
+
 
 from sweagent.environment.hooks.abstract import CombinedEnvHooks, EnvHook
 from sweagent.environment.repo import Repo, RepoConfig
@@ -25,7 +28,7 @@ class EnvironmentConfig(BaseModel):
     """Configure data sources and setup instructions for the environment in which we solve the tasks."""
 
     deployment: DeploymentConfig = Field(
-        default_factory=lambda: DockerDeploymentConfig(image="python:3.11", python_standalone_dir="/root"),
+        default_factory=lambda: ApptainerDeploymentConfig(image="python:3.11", python_standalone_dir="/root"),
         description="Deployment options.",
     )
     repo: RepoConfig | None = Field(

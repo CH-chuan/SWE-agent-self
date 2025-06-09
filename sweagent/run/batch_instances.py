@@ -6,11 +6,11 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from swerex.deployment.config import (
-    DeploymentConfig,
     DockerDeploymentConfig,
     DummyDeploymentConfig,
     LocalDeploymentConfig,
 )
+from sweagent.environment.apptainer_support.config import ApptainerDeploymentConfig, DeploymentConfig
 from typing_extensions import Self
 
 from sweagent.agent.problem_statement import ProblemStatementConfig, TextProblemStatement
@@ -252,7 +252,7 @@ class SWEBenchInstances(BaseModel, AbstractInstanceSource):
     split: Literal["dev", "test"] = "dev"
 
     deployment: DeploymentConfig = Field(
-        default_factory=lambda: DockerDeploymentConfig(image="python:3.11"),
+        default_factory=lambda: ApptainerDeploymentConfig(image="python:3.11"),
     )
     """Deployment configuration. Note that the image_name option is overwritten by the images specified in the task instances.
     """
@@ -288,7 +288,7 @@ class SWEBenchInstances(BaseModel, AbstractInstanceSource):
 
         ds: list[dict[str, Any]] = load_dataset(self._get_huggingface_name(), split=self.split)  # type: ignore
 
-        if isinstance(self.deployment, DockerDeploymentConfig):
+        if isinstance(self.deployment, ApptainerDeploymentConfig):
             self.deployment.platform = "linux/amd64"
 
         instances = [

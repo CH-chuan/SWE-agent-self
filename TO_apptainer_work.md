@@ -1,0 +1,2 @@
+check file [docs/reference/docker_interaction.md] for original docker implementation.
+Remember to also change the portal name, since 8000 is the default vllm serve portal (or check https://docs.vllm.ai/en/v0.7.2/getting_started/quickstart.html#openai-compatible-server for vllm serve portal setting).
