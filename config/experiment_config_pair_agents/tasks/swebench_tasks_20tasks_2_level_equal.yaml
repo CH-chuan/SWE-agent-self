@@ -1,0 +1,9 @@
+instances:
+  type: swe_bench # when you run swe benches
+  subset: verified # full, or lite
+  split: test # or dev for development, but verified version only has test split
+  filter: ^(django__django-15629|django__django-14631|django__django-11138|sphinx-doc__sphinx-9229|sympy__sympy-17630|django__django-13837|pylint-dev__pylint-4551|django__django-12708|django__django-14007|pydata__xarray-3993|django__django-11820|django__django-14534|scikit-learn__scikit-learn-13328|matplotlib__matplotlib-13989|sphinx-doc__sphinx-7889|django__django-11299|django__django-15277|django__django-11433|sphinx-doc__sphinx-8269|psf__requests-1142)$
+  slice: ":20" # after filter, only select like list[slice] instances
+  shuffle: true # randomize the instances (before filtering and slicing)
+  evaluate: true # evaluate the instances
+# output_dir: trajectories/swe_bench_experiment/gpt4o_baseline
