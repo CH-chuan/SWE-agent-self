@@ -1,0 +1,21 @@
+instance_id,repo,difficulty
+django__django-15629,django/django,1-4 hours
+django__django-14631,django/django,1-4 hours
+django__django-11138,django/django,1-4 hours
+sphinx-doc__sphinx-9229,sphinx-doc/sphinx,1-4 hours
+sympy__sympy-17630,sympy/sympy,1-4 hours
+django__django-13837,django/django,1-4 hours
+pylint-dev__pylint-4551,pylint-dev/pylint,1-4 hours
+django__django-12708,django/django,1-4 hours
+django__django-14007,django/django,1-4 hours
+pydata__xarray-3993,pydata/xarray,1-4 hours
+django__django-11820,django/django,<15 min fix
+django__django-14534,django/django,<15 min fix
+scikit-learn__scikit-learn-13328,scikit-learn/scikit-learn,<15 min fix
+matplotlib__matplotlib-13989,matplotlib/matplotlib,<15 min fix
+sphinx-doc__sphinx-7889,sphinx-doc/sphinx,<15 min fix
+django__django-11299,django/django,<15 min fix
+django__django-15277,django/django,<15 min fix
+django__django-11433,django/django,<15 min fix
+sphinx-doc__sphinx-8269,sphinx-doc/sphinx,<15 min fix
+psf__requests-1142,psf/requests,<15 min fix
