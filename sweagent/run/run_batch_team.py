@@ -6,6 +6,7 @@ comes from a separate YAML file.
 
 import logging
 import random
+import sys
 import time
 import traceback
 from pathlib import Path
@@ -68,6 +69,10 @@ class RunBatchTeamConfig(BaseSettings, cli_implicit_flags=False):
     """Whether to show a progress bar. Progress bar is never shown for human models.
     Progress bar is always shown for multi-worker runs.
     """
+    force_cleanup_images: bool = True
+    """Whether to force cleanup of Docker images after each SWE-Bench instance.
+    This helps prevent disk space issues when running many instances.
+    """
 
     # pydantic config
     model_config = SettingsConfigDict(extra="forbid", env_prefix="SWE_AGENT_")
@@ -115,6 +120,7 @@ class RunBatchTeam(RunBatch):
         num_workers: int = 1,
         progress_bar: bool = True,
         random_delay_multiplier: float = 0.3,
+        force_cleanup_images: bool = True,
     ):
         """Initialize a RunBatchTeam.
         
@@ -130,6 +136,7 @@ class RunBatchTeam(RunBatch):
             num_workers: Number of parallel workers
             progress_bar: Whether to show a progress bar
             random_delay_multiplier: Random delay to avoid race conditions
+            force_cleanup_images: Whether to force cleanup of Docker images after each instance
         """
         self.logger = get_logger("swea-run-team", emoji="👥")
         add_file_handler(
@@ -171,6 +178,7 @@ class RunBatchTeam(RunBatch):
         )
         self._show_progress_bar = progress_bar
         self._random_delay_multiplier = random_delay_multiplier
+        self._force_cleanup_images = force_cleanup_images
     
     def _load_agent_configs(self, config_paths: List[Path]) -> List[DefaultAgentConfig]:
         """Load agent configurations from YAML files.
@@ -244,6 +252,7 @@ class RunBatchTeam(RunBatch):
             num_workers=config.num_workers,
             progress_bar=config.progress_bar,
             random_delay_multiplier=config.random_delay_multiplier,
+            force_cleanup_images=config.force_cleanup_images,
         )
         
         # Add SWE-bench evaluation hook if needed
@@ -342,11 +351,61 @@ class RunBatchTeam(RunBatch):
             raise
         finally:
             env.close()
+            # Force cleanup of Docker images after each instance if enabled
+            if self._force_cleanup_images:
+                self._cleanup_docker_images(instance.problem_statement.id)
             
         # Save the results
         save_predictions(self.output_dir, instance.problem_statement.id, result)
         self._chooks.on_instance_completed(result=result)
         return result
+
+    def _cleanup_docker_images(self, instance_id: str) -> None:
+        """Force cleanup of Docker images for the given instance.
+        
+        This method removes Docker images created for the instance to free up disk space.
+        
+        Args:
+            instance_id: The instance ID to clean up images for
+        """
+        try:
+            import docker
+            client = docker.from_env()
+
+            # Remove dangling images first to free up space
+            try:
+                pruned = client.images.prune()
+                if pruned.get('ImagesDeleted'):
+                    self.logger.debug(f"Pruned {len(pruned['ImagesDeleted'])} dangling images")
+            except Exception as e:
+                self.logger.warning(f"Failed to prune dangling images: {e}")
+            
+            # Get all images and find ones related to this instance
+            all_images = client.images.list(all=True)
+            removed_count = 0
+            
+            for image in all_images:
+                for tag in image.tags:
+                    # Check if this image is related to the current instance
+                    if (instance_id.lower() in tag.lower() or 
+                        f"sweb.eval" in tag and instance_id.lower() in tag.lower()):
+                        try:
+                            self.logger.debug(f"Attempting to remove image {tag}")
+                            client.images.remove(tag, force=True)
+                            self.logger.info(f"Successfully removed image {tag}")
+                            removed_count += 1
+                        except docker.errors.ImageNotFound:
+                            self.logger.debug(f"Image {tag} not found, skipping")
+                        except Exception as e:
+                            self.logger.warning(f"Failed to remove image {tag}: {e}")
+                            
+            if removed_count > 0:
+                self.logger.info(f"Cleaned up {removed_count} Docker images for instance {instance_id}")
+            else:
+                self.logger.debug(f"No images found to clean up for instance {instance_id}")
+                    
+        except Exception as e:
+            self.logger.warning(f"Failed to initialize Docker client for image cleanup: {e}")
 
 
 def run_team_from_config(config: RunBatchTeamConfig):
