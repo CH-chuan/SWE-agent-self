@@ -162,6 +162,75 @@ class Team(AbstractAgent):
         
         # Trajectory path is now set in the setup method with problem ID included
     
+    def _add_inter_agent_step_to_history(self, target_agent: DefaultAgent, step: StepOutput, source_agent_name: str) -> None:
+        """Add a step from another agent to the target agent's history with correct role.
+        
+        This is similar to add_step_to_history but creates history items with "role": "user"
+        since the step is coming from another agent, not from the target agent itself.
+        
+        Args:
+            target_agent: The agent receiving the step
+            step: The step output to add
+            source_agent_name: Name of the agent that created the step
+        """
+        # Create the base history item with "user" role since it's from another agent
+        history_item = {
+            "role": "user",
+            "content": step.output,
+            "thought": step.thought,
+            "action": step.action,
+            "agent": source_agent_name,
+            "message_type": "action",
+        }
+        
+        # Only add tool_calls for agents that use tools (not navigator)
+        # or if the step explicitly has non-empty tool_calls
+        if (not hasattr(target_agent, 'not_using_tools') or not target_agent.not_using_tools) and hasattr(step, 'tool_calls') and step.tool_calls:
+            history_item["tool_calls"] = step.tool_calls
+            
+        target_agent._append_history(history_item)
+
+        # For not_using_tools agents with empty observation, skip adding observation to history
+        if hasattr(target_agent, 'not_using_tools') and target_agent.not_using_tools and (not hasattr(step, 'observation') or not step.observation.strip()):
+            return
+            
+        # Skip sharing error messages like max retries reached
+        if hasattr(step, 'observation') and step.observation and "Max retries reached" in step.observation:
+            self.logger.debug(f"Skipping sharing of max retries error message from {source_agent_name}")
+            return
+            
+        elided_chars = 0
+        if step.observation.strip() == "":
+            # Show no output template if observation content was empty
+            templates = [target_agent.templates.next_step_no_output_template]
+        elif len(step.observation) > target_agent.templates.max_observation_length:
+            templates = [target_agent.templates.next_step_truncated_observation_template]
+            elided_chars = len(step.observation) - target_agent.templates.max_observation_length
+            step.observation = step.observation[: target_agent.templates.max_observation_length]
+        else:
+            # Show standard output template if there is observation content
+            templates = [target_agent.templates.next_step_template]
+        # Create kwargs for _add_templated_messages_to_history with safe attribute access
+        kwargs = {
+            "observation": step.observation,
+            "elided_chars": elided_chars,
+            "max_observation_length": target_agent.templates.max_observation_length,
+        }
+        
+        # Add state if it exists
+        if hasattr(step, 'state'):
+            kwargs.update(step.state)
+        
+        # Only add tool_call_ids if it exists and we're using tools
+        if (hasattr(step, 'tool_call_ids') and getattr(step, 'tool_call_ids', None) and
+            (not hasattr(target_agent, 'not_using_tools') or not target_agent.not_using_tools)):
+            kwargs["tool_call_ids"] = step.tool_call_ids
+            
+        target_agent._add_templated_messages_to_history(
+            templates,
+            **kwargs
+        )
+
     def _share_tool_results_only(self, source_agent: DefaultAgent, target_agent: DefaultAgent, step_output: StepOutput) -> None:
         """Share only tool execution results with another agent, not the original messages.
         
@@ -185,6 +254,11 @@ class Team(AbstractAgent):
         if not observation or not observation.strip():
             return
             
+        # Skip sharing error messages like max retries reached
+        if "Max retries reached" in observation:
+            self.logger.debug(f"Skipping sharing of max retries error message from {source_agent.name}")
+            return
+            
         # Get tool_calls, tool_call_ids, and state from step_output as an object
         tool_calls = getattr(step_output, 'tool_calls', None)
         tool_call_ids = getattr(step_output, 'tool_call_ids', None)
@@ -195,7 +269,7 @@ class Team(AbstractAgent):
             # For Azure OpenAI, we need to include both the tool call and the tool result
             # First add a dummy assistant message with or without tool calls based on agent type
             history_item = {
-                "role": "assistant", 
+                "role": "user", 
                 "content": f"driver used tool: {step_output.action}", 
                 "agent": source_agent.name,  # Add the agent field
                 "message_type": "action"  # Ensure message_type is present for history processors
@@ -266,8 +340,8 @@ class Team(AbstractAgent):
             message = "\n".join(formatted_messages)
             target_agent.history.append({
                 "role": "user",
-                "content": f"[{target_agent.name}]: {message}",
-                "agent": target_agent.name,
+                "content": message,
+                "agent": source_agent.name,
                 "message_type": "observation",
             })
             
@@ -478,6 +552,297 @@ class Team(AbstractAgent):
         
         return self.agents[self.current_agent_idx]
     
+    def _prepare_agent_for_step(self, agent: DefaultAgent, remaining_turns: int) -> int:
+        """Prepare agent for step execution with dynamic retry limits.
+        
+        Args:
+            agent: The agent to prepare
+            remaining_turns: Number of remaining turns for this agent
+            
+        Returns:
+            Original max_requeries value to restore later
+        """
+        original_max_requeries = agent.max_requeries
+        
+        if remaining_turns < 1:
+            agent.max_requeries = 1
+            self.logger.info(f"Agent {agent.name} is on last turn, limiting max_requeries to 1")
+        else:
+            agent.max_requeries = min(original_max_requeries, remaining_turns)
+            
+        return original_max_requeries
+
+    def _execute_agent_step(self, agent: DefaultAgent) -> StepOutput:
+        """Execute a step with the given agent and handle retries.
+        
+        Args:
+            agent: The agent to execute the step with
+            
+        Returns:
+            StepOutput from the agent's step
+        """
+        step_raw = agent.step()
+
+        # Handle retries
+        if hasattr(agent, 'current_step_retries') and agent.current_step_retries > 0:
+            self.logger.info(f"Agent {agent.name} had {agent.current_step_retries} retries during this step")
+            self.team_step_count += agent.current_step_retries
+            self.logger.info(f"Updated team step count to {self.team_step_count} due to retries")
+            # Count retries toward the turn limit
+            self.agent_consecutive_turns[agent.name] += min(agent.current_step_retries, 1)
+
+        # Ensure we have a proper StepOutput object
+        if isinstance(step_raw, dict):
+            step_output = StepOutput(**step_raw)
+            self.logger.warning(f"Agent {agent.name} returned a dictionary instead of StepOutput object. Converting to StepOutput.")
+        else:
+            step_output = step_raw
+            
+        return step_output
+
+    def _handle_question_asking(self, agent: DefaultAgent, step_output: StepOutput) -> None:
+        """Handle when an agent asks a question to another agent.
+        
+        Args:
+            agent: The agent that asked the question
+            step_output: The step output containing the question
+        """
+        question_asked, question, target_agent = self._check_for_question(step_output)
+        if not question_asked:
+            return
+
+        # Find target agent
+        target_agent_obj = self._find_target_agent(target_agent)
+        if not target_agent_obj:
+            return
+
+        # Add question to target agent's history
+        target_agent_obj._append_history({
+            "role": "user",
+            "content": question,
+            "agent": agent.name,
+            "message_type": "question",
+        })
+
+        # Force next step to be taken by target agent
+        self._force_agent_rotation_to(target_agent_obj)
+        
+        # Mark target agent as responding to question
+        target_agent_obj.responding_to_question = True
+        target_agent_obj.question_from_agent = agent.name
+        
+        self.logger.info(f"Question from {agent.name} directed to {target_agent_obj.name}, who will respond in the next step")
+
+    def _find_target_agent(self, target_agent_name: str) -> DefaultAgent:
+        """Find the target agent by name or default to next in rotation.
+        
+        Args:
+            target_agent_name: Name of the target agent (can be empty)
+            
+        Returns:
+            The target agent object
+        """
+        if target_agent_name:
+            # Find agent with matching name
+            for a in self.agents:
+                if a.name == target_agent_name:
+                    return a
+            
+            self.logger.warning(f"Target agent {target_agent_name} not found, using next agent")
+        
+        # Default to next agent in rotation
+        next_idx = (self.current_agent_idx + 1) % len(self.agents)
+        return self.agents[next_idx]
+
+    def _force_agent_rotation_to(self, target_agent: DefaultAgent) -> None:
+        """Force the next step to be taken by the specified agent.
+        
+        Args:
+            target_agent: The agent that should take the next step
+        """
+        # Force rotation by maxing out current agent's turns
+        current_agent = self.agents[self.current_agent_idx]
+        agent_max_turns = getattr(current_agent, "max_consecutive_turns", self.max_consecutive_turns)
+        self.agent_consecutive_turns[current_agent.name] = agent_max_turns
+        
+        # Position index to target agent
+        target_idx = self.agents.index(target_agent)
+        self.current_agent_idx = (target_idx - 1) % len(self.agents)
+        self.agent_consecutive_turns[target_agent.name] = 0
+
+    def _handle_question_response(self, agent: DefaultAgent, step_output: StepOutput) -> tuple[DefaultAgent, str]:
+        """Handle when an agent responds to a question.
+        
+        Args:
+            agent: The agent responding to the question
+            step_output: The step output containing the response
+            
+        Returns:
+            Tuple of (asking_agent, asking_agent_name) or (None, "") if not responding
+        """
+        if not (hasattr(agent, 'responding_to_question') and agent.responding_to_question and 
+                hasattr(agent, 'question_from_agent') and agent.question_from_agent):
+            return None, ""
+
+        # Find the agent who asked the question
+        asking_agent = None
+        for a in self.agents:
+            if a.name == agent.question_from_agent:
+                asking_agent = a
+                break
+
+        if asking_agent:
+            # Add response to asking agent's history
+            asking_agent._append_history({
+                "role": "user",
+                "content": step_output.thought,
+                "agent": agent.name,
+                "message_type": "response",
+            })
+            
+            self.logger.info(f"Agent {agent.name} responded to question from {agent.question_from_agent}")
+            return asking_agent, agent.question_from_agent
+
+        return None, ""
+
+    def _share_context_with_other_agents(self, agent: DefaultAgent, step_output: StepOutput, 
+                                       handoff_requested: bool, is_responding_to_question: bool, 
+                                       max_retries_reached: bool = False) -> None:
+        """Share step information with other agents based on sharing preferences.
+        
+        Args:
+            agent: The agent that took the step
+            step_output: The step output to share
+            handoff_requested: Whether handoff was requested
+            is_responding_to_question: Whether this was a question response
+            max_retries_reached: Whether the agent reached max retries
+        """
+        to_share_content = f"[{agent.name}]: {step_output.thought}"
+        to_share_step = copy.deepcopy(step_output)
+        to_share_step.output = to_share_content
+
+        for other_agent in self.agents:
+            if other_agent == agent:
+                continue
+
+            # Skip sharing with asking agent if this was a response to a question
+            if (is_responding_to_question and hasattr(agent, 'question_from_agent') and 
+                agent.question_from_agent and other_agent.name == agent.question_from_agent):
+                continue
+
+            self._share_with_single_agent(agent, other_agent, to_share_step, handoff_requested, max_retries_reached)
+
+    def _share_with_single_agent(self, source_agent: DefaultAgent, target_agent: DefaultAgent, 
+                               step_output: StepOutput, handoff_requested: bool, 
+                               max_retries_reached: bool = False) -> None:
+        """Share step information with a single agent.
+        
+        Args:
+            source_agent: The agent that took the step
+            target_agent: The agent to share with
+            step_output: The step output to share
+            handoff_requested: Whether handoff was requested
+            max_retries_reached: Whether the agent reached max retries
+        """
+        if handoff_requested:
+            # Share full context when handoff is used
+            self.logger.debug(f"Agent {source_agent.name} used handoff, sharing full context with {target_agent.name}")
+            self._add_inter_agent_step_to_history(target_agent, step_output, source_agent.name)
+        elif max_retries_reached:
+            # Share full context when max retries are reached (but not as handoff)
+            self.logger.debug(f"Agent {source_agent.name} reached max retries, sharing context with {target_agent.name}")
+            self._add_inter_agent_step_to_history(target_agent, step_output, source_agent.name)
+        elif hasattr(source_agent, "share_only_tool_results") and source_agent.share_only_tool_results:
+            # Only share tool results
+            self._share_tool_results_only(source_agent, target_agent, step_output)
+            self.logger.debug(f"Agent {source_agent.name} shared only tool results with {target_agent.name}")
+        else:
+            # Share based on agent type
+            self._share_based_on_agent_type(source_agent, target_agent, step_output)
+
+    def _share_based_on_agent_type(self, source_agent: DefaultAgent, target_agent: DefaultAgent, 
+                                 step_output: StepOutput) -> None:
+        """Share step information based on the source agent's type.
+        
+        Args:
+            source_agent: The agent that took the step
+            target_agent: The agent to share with
+            step_output: The step output to share
+        """
+        if hasattr(source_agent, 'not_using_tools') and source_agent.not_using_tools:
+            # For non-tool agents, share only thought
+            target_agent._append_history({
+                "role": "user",
+                "content": step_output.thought,
+                "thought": step_output.thought,
+                "action": "",
+                "agent": source_agent.name,
+                "message_type": "non_tool_thought",
+            })
+            self.logger.debug(f"Agent {source_agent.name} shared only thought with {target_agent.name} (no tool execution)")
+        else:
+            # Share full step output for normal agents
+            self._prepare_step_for_sharing(source_agent, step_output)
+            self._add_inter_agent_step_to_history(target_agent, step_output, source_agent.name)
+            self.logger.debug(f"Agent {source_agent.name} shared full context with {target_agent.name}")
+
+    def _prepare_step_for_sharing(self, source_agent: DefaultAgent, step_output: StepOutput) -> None:
+        """Prepare step output for sharing by removing problematic attributes.
+        
+        Args:
+            source_agent: The agent that took the step
+            step_output: The step output to prepare
+        """
+        if hasattr(source_agent, 'not_using_tools') and source_agent.not_using_tools:
+            # Remove tool_calls and tool_call_ids to prevent Azure API errors
+            if hasattr(step_output, 'tool_calls'):
+                delattr(step_output, 'tool_calls')
+            if hasattr(step_output, 'tool_call_ids'):
+                delattr(step_output, 'tool_call_ids')
+
+    def _cleanup_question_response(self, agent: DefaultAgent, asking_agent: DefaultAgent, 
+                                 asking_agent_name: str) -> None:
+        """Clean up question response state and transfer control back.
+        
+        Args:
+            agent: The agent that responded to the question
+            asking_agent: The agent that asked the question
+            asking_agent_name: Name of the asking agent
+        """
+        if not asking_agent:
+            return
+
+        # Reset the responding flags
+        agent.responding_to_question = False
+        agent.question_from_agent = None
+
+        # Return control to the asking agent
+        asking_agent_idx = self.agents.index(asking_agent)
+        self.current_agent_idx = (asking_agent_idx - 1) % len(self.agents)
+        self.agent_consecutive_turns[asking_agent_name] = 0
+        self.logger.debug(f"Control returned to {asking_agent_name} after question response")
+
+    def _update_team_state(self, agent: DefaultAgent, step_output: StepOutput) -> None:
+        """Update team-wide state with information from the step.
+        
+        Args:
+            agent: The agent that took the step
+            step_output: The step output to extract information from
+        """
+        # Update shared trajectory
+        if agent.trajectory and len(agent.trajectory) > 0:
+            self._trajectory.append(agent.trajectory[-1])
+
+        # Update info with key fields
+        if hasattr(step_output, 'submission') and step_output.submission:
+            self.info["submission"] = step_output.submission
+        if hasattr(step_output, 'exit_status') and step_output.exit_status:
+            self.info["exit_status"] = step_output.exit_status
+
+        # Update model stats if available
+        if hasattr(agent.model, "stats"):
+            self.info["model_stats"] = agent.model.stats.model_dump()
+
     def step(self) -> StepOutput:
         """Run a step with the current or next agent based on turn rules.
         
@@ -496,215 +861,39 @@ class Team(AbstractAgent):
         # Check if this agent is responding to a question
         is_responding_to_question = hasattr(agent, 'responding_to_question') and agent.responding_to_question
 
-        # Set dynamic max_requeries based on remaining turns
-        # Store original value to restore it later
-        original_max_requeries = agent.max_requeries
+        # Prepare agent for step execution
+        original_max_requeries = self._prepare_agent_for_step(agent, remaining_turns)
         
-        # Set dynamic max_requeries based on remaining turns
-        # If this is the last turn, limit to 1 retry
-        if remaining_turns < 1:
-            agent.max_requeries = 1
-            self.logger.info(f"Agent {agent.name} is on last turn, limiting max_requeries to 1")
-        else:
-            agent.max_requeries = min(original_max_requeries, remaining_turns)
-        
-        # Increment team step counter for continuous step numbering
+        # Increment team step counter
         self.team_step_count += 1
         self.logger.info(f"Agent {agent.name} is taking a step (team step {self.team_step_count}, agent turn {agent_turns})")
         
         try:
-            # Have the current agent take a step
-            step_raw = agent.step()
-
-            # Check if there were retries
-            if hasattr(agent, 'current_step_retries') and agent.current_step_retries > 0:
-                self.logger.info(f"Agent {agent.name} had {agent.current_step_retries} retries during this step")
-                # update the team step count
-                self.team_step_count += agent.current_step_retries
-                self.logger.info(f"Updated team step count to {self.team_step_count} due to retries")
-                # Count retries toward the turn limit (more aggressive handoff)
-                self.agent_consecutive_turns[agent.name] += min(agent.current_step_retries, 1)  # Count at most 1 extra turn
+            # Execute the agent's step
+            step_output = self._execute_agent_step(agent)
             
-            # Ensure we have a proper StepOutput object, not a dictionary
-            if isinstance(step_raw, dict):
-                step_output = StepOutput(**step_raw)
-                self.logger.warning(f"Agent {agent.name} returned a dictionary instead of StepOutput object. Converting to StepOutput.")
-            else:
-                step_output = step_raw
-            
-            # Check if the agent asked a question
-            question_asked, question, target_agent = self._check_for_question(step_output)
-            if question_asked:
-                # Find the target agent to ask the question to
-                target_agent_obj = None
-                if target_agent:
-                    # Find the agent with the matching name
-                    for a in self.agents:
-                        if a.name == target_agent:
-                            target_agent_obj = a
-                            break
-                    
-                    if not target_agent_obj:
-                        self.logger.warning(f"Target agent {target_agent} not found, using next agent")
-                        # Fall back to the next agent in rotation
-                        next_idx = (self.current_agent_idx + 1) % len(self.agents)
-                        target_agent_obj = self.agents[next_idx]
-                else:
-                    # No target specified, use the next agent in rotation
-                    next_idx = (self.current_agent_idx + 1) % len(self.agents)
-                    target_agent_obj = self.agents[next_idx]
-                
-                # Add the question to the target agent's history
-                if target_agent_obj:
-                    # Create a special history entry for the question
-                    target_agent_obj._append_history({
-                        "role": "user",
-                        "content": f"[Question from {agent.name}]: {question}",
-                        "agent": agent.name,
-                        "message_type": "question",
-                    })
-                    
-                    # Force the next step to be taken by the target agent
-                    # Similar to handoff, force rotation by maxing out the current agent's turns
-                    agent_max_turns = getattr(agent, "max_consecutive_turns", self.max_consecutive_turns)
-                    self.agent_consecutive_turns[agent.name] = agent_max_turns
-                    
-                    # Directly set the current_agent_idx to the target agent
-                    # When _get_next_agent is called, it will see that the current agent has reached max turns
-                    # and will rotate to the next agent, so we need to position the index accordingly
-                    target_idx = self.agents.index(target_agent_obj)
-                    # Set current_agent_idx to the agent before the target agent
-                    self.current_agent_idx = (target_idx - 1) % len(self.agents)
-                    # Reset the consecutive turns counter for the target agent to 0
-                    # It will be incremented to 1 in _get_next_agent
-                    self.agent_consecutive_turns[target_agent_obj.name] = 0
-                    
-                    # Add a pending response flag to indicate this agent is responding to a question
-                    target_agent_obj.responding_to_question = True
-                    target_agent_obj.question_from_agent = agent.name
-                    
-                    self.logger.info(f"Question from {agent.name} directed to {target_agent_obj.name}, who will respond in the next step")
-            
-            # Check if the agent requested a handoff
+            # Handle communication patterns
+            self._handle_question_asking(agent, step_output)
             handoff_requested = self._check_for_handoff(step_output)
-            if handoff_requested:
-                # Force rotation to the next agent on the next step by maxing out this agent's turns
+            asking_agent, asking_agent_name = self._handle_question_response(agent, step_output)
+            
+            # Check if agent reached max retries and should be rotated
+            max_retries_reached = (hasattr(step_output, 'exit_status') and 
+                                 step_output.exit_status == "max_retries_reached")
+            if max_retries_reached:
+                # Force rotation to the next agent by maxing out current agent's turns
                 agent_max_turns = getattr(agent, "max_consecutive_turns", self.max_consecutive_turns)
                 self.agent_consecutive_turns[agent.name] = agent_max_turns
-                self.logger.info(f"Agent {agent.name} explicitly requested handoff to next agent")
+                self.logger.info(f"Agent {agent.name} reached max retries, forcing rotation to next agent")
             
-            # Handle question response if this agent is responding to a question
-            if is_responding_to_question and hasattr(agent, 'question_from_agent') and agent.question_from_agent:
-                # Find the agent who asked the question
-                asking_agent = None
-                for a in self.agents:
-                    if a.name == agent.question_from_agent:
-                        asking_agent = a
-                        break
-                
-                if asking_agent:
-                    # Add the response to the asking agent's history
-                    asking_agent._append_history({
-                        "role": "user",
-                        "content": f"[Response from {agent.name}]: {step_output.thought}",
-                        "agent": agent.name,
-                        "message_type": "response",
-                    })
-                    
-                    self.logger.info(f"Agent {agent.name} responded to question from {agent.question_from_agent}")
-                    
-                    # Store the asking agent info before resetting flags
-                    # (we'll need this for context sharing and control transfer)
-                    asking_agent_name = agent.question_from_agent
-                    asking_agent_index = self.agents.index(asking_agent)
+            # Share context with other agents
+            self._share_context_with_other_agents(agent, step_output, handoff_requested, is_responding_to_question, max_retries_reached)
             
-            # Share step information with other agents based on the source agent's sharing preferences
-            to_share_content = f"[{agent.name}]: {step_output.thought}"
-            to_share_step = copy.deepcopy(step_output)
-            to_share_step.output = to_share_content # change output because output is the thing that the agent will actually query about, while thought is just for showing.
-            for other_agent in self.agents:
-                if other_agent != agent:
-                    # Skip sharing with the asking agent if this was a response to a question
-                    # (we already added the response above)
-                    if is_responding_to_question and hasattr(agent, 'question_from_agent') and agent.question_from_agent:
-                        if other_agent.name == agent.question_from_agent:
-                            continue
-                    
-                    # Check if handoff was requested - if so, always share full context
-                    # Otherwise use the agent's default sharing preference
-                    if handoff_requested:
-                        # When handoff is used, share full context (not just tool results)
-                        self.logger.debug(f"Agent {agent.name} used handoff, sharing full context with {other_agent.name}")
-                        # Create a special history entry for handoff
-                        other_agent.add_step_to_history(to_share_step, name=agent.name)
-                    elif hasattr(agent, "share_only_tool_results") and agent.share_only_tool_results:
-                        # Only share observation/tool results, not the agent's messages requesting the tools
-                        self._share_tool_results_only(agent, other_agent, to_share_step)
-                        self.logger.debug(f"Agent {agent.name} shared only tool results with {other_agent.name}")
-                    else:
-                        # For agents with not_using_tools=True (like navigator), don't share any context
-                        # to avoid creating a mock tool execution result in the other agent's history
-                        if hasattr(agent, 'not_using_tools') and agent.not_using_tools:
-                            # Create a minimal history entry with just the thought
-                            # This avoids the "Your command ran successfully..." log message
-                            other_agent._append_history({
-                                "role": "assistant",
-                                "content": to_share_step.thought,
-                                "thought": to_share_step.thought,
-                                "action": "",
-                                "agent": agent.name,  # Use the source agent's name
-                                "message_type": "non_tool_thought",
-                            })
-                            self.logger.debug(f"Agent {agent.name} shared only thought with {other_agent.name} (no tool execution)")
-                        else:
-                            # Share full step output including agent reasoning for normal agents
-                            # step_copy = copy.deepcopy(to_share_step)
-                            
-                            # If the source agent doesn't use tools but the target agent does,
-                            # we need to ensure we don't pass empty tool_calls arrays to Azure OpenAI
-                            if hasattr(agent, 'not_using_tools') and agent.not_using_tools:
-                                # Remove tool_calls and tool_call_ids to prevent Azure API errors
-                                if hasattr(to_share_step, 'tool_calls'):
-                                    delattr(to_share_step, 'tool_calls')
-                                if hasattr(to_share_step, 'tool_call_ids'):
-                                    delattr(to_share_step, 'tool_call_ids')
-                        
-                            other_agent.add_step_to_history(to_share_step, name=agent.name)
-                            self.logger.debug(f"Agent {agent.name} shared full context with {other_agent.name}")
+            # Cleanup question response state
+            self._cleanup_question_response(agent, asking_agent, asking_agent_name)
             
-            # After context sharing, reset question flags and transfer control if this was a response to a question
-            if is_responding_to_question and hasattr(agent, 'responding_to_question') and agent.responding_to_question:
-                # Reset the responding flags
-                agent.responding_to_question = False
-                agent.question_from_agent = None
-                
-                # Return control to the asking agent for the next step
-                # Similar to how we handle question asking, set the current_agent_idx to the agent before the asking agent
-                asking_agent_idx = self.agents.index(asking_agent)
-                # Set current_agent_idx to the agent before the asking agent
-                self.current_agent_idx = (asking_agent_idx - 1) % len(self.agents)
-                # Reset the consecutive turns counter for the asking agent to 0
-                # It will be incremented to 1 in _get_next_agent
-                self.agent_consecutive_turns[asking_agent_name] = 0
-                self.logger.debug(f"Control returned to {asking_agent_name} after question response")
-            
-            # Update shared trajectory
-            # We only add the latest step to avoid duplication
-            if agent.trajectory and len(agent.trajectory) > 0:
-                # Add only the last step from the agent's trajectory
-                self._trajectory.append(agent.trajectory[-1])
-                
-            # Update info with key fields from the current agent's step
-            # AgentInfo is a Pydantic model, so we should use attribute access
-            # StepOutput should always be handled as an object with attributes
-            if hasattr(step_output, 'submission') and step_output.submission:
-                self.info["submission"] = step_output.submission
-            if hasattr(step_output, 'exit_status') and step_output.exit_status:
-                self.info["exit_status"] = step_output.exit_status
-            
-            # Also update model stats if available from the agent
-            if hasattr(agent.model, "stats"):
-                self.info["model_stats"] = agent.model.stats.model_dump()
+            # Update team state
+            self._update_team_state(agent, step_output)
             
             # Trigger hook
             self._chook.on_step_done(step=step_output, info=self.info)
