@@ -171,18 +171,6 @@ class ToolConfig(BaseModel):
         ):
             msg = f"Bash tool can only be disabled if {FunctionCallingParser.type} parser or {JsonParser.type} parser is used."
             raise ValueError(msg)
-            
-        if not self.enable_handoff_tool and not (
-            isinstance(self.parse_function, FunctionCallingParser) or isinstance(self.parse_function, JsonParser)
-        ):
-            msg = f"Handoff tool can only be disabled if {FunctionCallingParser.type} parser or {JsonParser.type} parser is used."
-            raise ValueError(msg)
-            
-        if not self.enable_ask_question_tool and not (
-            isinstance(self.parse_function, FunctionCallingParser) or isinstance(self.parse_function, JsonParser)
-        ):
-            msg = f"Ask question tool can only be disabled if {FunctionCallingParser.type} parser or {JsonParser.type} parser is used."
-            raise ValueError(msg)
 
         self.multi_line_command_endings = multi_line_command_endings
         self.command_docs = generate_command_docs(
