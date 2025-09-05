@@ -1,0 +1,9 @@
+instances:
+  type: swe_bench # when you run swe benches
+  subset: verified # full, or lite
+  split: test # or dev for development, but verified version only has test split
+  filter: ^(django__django-15315|matplotlib__matplotlib-25122|sphinx-doc__sphinx-7462|scikit-learn__scikit-learn-25973|sympy__sympy-17139|django__django-12125|scikit-learn__scikit-learn-13135|sphinx-doc__sphinx-9711|django__django-14608|scikit-learn__scikit-learn-12585|django__django-15569|scikit-learn__scikit-learn-25232|django__django-16801|matplotlib__matplotlib-13989|sympy__sympy-16886|sphinx-doc__sphinx-9281|django__django-16429|django__django-11451|sympy__sympy-15345|django__django-13807|django__django-12308|django__django-10097|django__django-15851|django__django-11163|django__django-15368|django__django-12193|sympy__sympy-19637|django__django-11820|pydata__xarray-4075|pytest-dev__pytest-7205|sympy__sympy-16766|django__django-11490|django__django-13741|django__django-17087|django__django-12209|django__django-10999|django__django-11880|matplotlib__matplotlib-25287|django__django-14792|sympy__sympy-19495|sphinx-doc__sphinx-8721|pydata__xarray-4629|django__django-13297|sphinx-doc__sphinx-7440|django__django-14493|matplotlib__matplotlib-20676|sympy__sympy-24562|sphinx-doc__sphinx-7889|django__django-16642|django__django-13406)$ # regrex used for filter the instances by instance id in swebench
+  slice: ":50" # after filter, only select like list[slice] instances
+  shuffle: false # randomize the instances (before filtering and slicing)
+  evaluate: false # evaluate the instances
+# output_dir: trajectories/swe_bench_experiment/gpt4o_baseline

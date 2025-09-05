@@ -2,9 +2,9 @@ agent:
   name: navigator
   max_consecutive_turns: 1
   share_only_tool_results: false
-  not_using_tools: true\
+  not_using_tools: true
   model:
-    name: ollama/gpt-oss:20b
+    name: ollama/gpt-oss:120b
     api_base: http://127.0.0.1:11434
     api_key: "111"
     per_instance_cost_limit: 1
@@ -28,7 +28,8 @@ agent:
 
       When you respond, make sure to speak in the role of a navigator.
       If the driver asks for your help using the Ask Question tool, you should respond accordingly.
-      Please note: you are not allowed to directly complete the task -- you may only provide suggestions and comments.
+      Please note: you are not allowed to directly complete the task -- you must only provide suggestions and comments.
+      Also, your thinking process will not be saved for future reference, only the responses will be saved.
 
       Your paired driver is working directly in the command line with a special interface.
       You can also read the information returned by the interface when the driver is running commands.
