@@ -76,7 +76,7 @@ class TemplateConfig(BaseModel):
     Available variables: `observation`, `max_observation_length`, `elided_chars`
     """
 
-    max_observation_length: int = 100_000
+    max_observation_length: int = 20_000
     """Truncate observation to this length if it exceeds it."""
 
     next_step_no_output_template: str = None  # type: ignore
@@ -714,7 +714,7 @@ class DefaultAgent(AbstractAgent):
         # Create the base history item
         history_item = {
             "role": "assistant",
-            "content": step.output,
+            "content": f"{step.output} \n Action Taken: {step.action}",
             "thought": step.thought,
             "action": step.action,
             "agent": name,
