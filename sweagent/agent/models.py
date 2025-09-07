@@ -570,7 +570,9 @@ class LiteLLMModel(AbstractModel):
         self.logger = get_logger("swea-lm", emoji="🤖")
 
         if tools.use_function_calling:
-            if not litellm.utils.supports_function_calling(model=self.config.name):
+            if "qwen3" in self.config.name:
+                self.config.completion_kwargs["enable_auto_tool_choice"] = True
+            elif not litellm.utils.supports_function_calling(model=self.config.name):
                 msg = (
                     f"Model {self.config.name} does not support function calling. If your model"
                     " does not support function calling, you can use `parse_function='thought_action'` instead. "
@@ -589,6 +591,46 @@ class LiteLLMModel(AbstractModel):
             self.model_max_output_tokens = litellm.model_cost.get(self.config.name, {}).get("max_output_tokens")
 
         self.lm_provider = litellm.model_cost.get(self.config.name, {}).get("litellm_provider")
+
+    def _parse_qwen3_tool_calls(self, content: str) -> list[dict] | None:
+        """Parse Qwen3 tool calls from content that uses <tool_call> format.
+        
+        Expected format:
+        <tool_call>
+        <function=function_name>
+        <parameter=param_name>
+        param_value
+        </parameter>
+        </function>
+        </tool_call>
+        """
+        import re
+        
+        # Pattern to match the tool call format
+        pattern = r'<tool_call>\s*<function=([^>]+)>\s*<parameter=([^>]+)>\s*([^<]*?)\s*</parameter>\s*</function>\s*</tool_call>'
+        
+        matches = re.findall(pattern, content, re.DOTALL)
+        if not matches:
+            return None
+        
+        tool_calls = []
+        for match in matches:
+            function_name = match[0].strip()
+            param_name = match[1].strip()
+            param_value = match[2].strip()
+            
+            # Create tool call in the format expected by FunctionCallingParser
+            tool_call = {
+                "id": f"call_{len(tool_calls)}",
+                "type": "function",
+                "function": {
+                    "name": function_name,
+                    "arguments": json.dumps({param_name: param_value})
+                }
+            }
+            tool_calls.append(tool_call)
+        
+        return tool_calls
 
     @property
     def instance_cost_limit(self) -> float:
@@ -737,6 +779,13 @@ class LiteLLMModel(AbstractModel):
                     tool_calls = [call.to_dict() for call in response.choices[i].message.tool_calls]  # type: ignore
                 else:
                     tool_calls = []
+                
+                # Special handling for Qwen3 models that use <tool_call> format
+                if "qwen3" in self.config.name.lower() and not tool_calls:
+                    parsed_tool_calls = self._parse_qwen3_tool_calls(output)
+                    if parsed_tool_calls:
+                        tool_calls = parsed_tool_calls
+                
                 output_dict["tool_calls"] = tool_calls
             outputs.append(output_dict)
         self._update_stats(input_tokens=input_tokens, output_tokens=output_tokens, cost=cost)
