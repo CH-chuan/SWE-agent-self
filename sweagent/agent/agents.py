@@ -76,7 +76,7 @@ class TemplateConfig(BaseModel):
     Available variables: `observation`, `max_observation_length`, `elided_chars`
     """
 
-    max_observation_length: int = 100_000
+    max_observation_length: int = 10_000
     """Truncate observation to this length if it exceeds it."""
 
     next_step_no_output_template: str = None  # type: ignore
