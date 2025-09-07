@@ -1,0 +1,80 @@
+agent:
+  name: navigator
+  max_consecutive_turns: 1
+  share_only_tool_results: false
+  not_using_tools: true
+  model:
+    name: azure/gpt-4o
+    api_base: https://takin-research.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2024-10-21
+    api_key: $azure_4o_API_KEY
+    per_instance_cost_limit: 1
+    per_instance_call_limit: 20
+    temperature: 0.3
+    # completion_kwargs:
+    #   max_tokens: 64000 # due to azure, it should lower than your per minute token rate limit
+    retry:
+      retries: 5
+      min_wait: 60
+      max_wait: 120
+  templates:
+    system_template: |-
+      SETTING: You are working as the navigator of a pair programming session. 
+
+      When you respond, make sure to speak in the role of a navigator.
+      Please note: you are not allowed to directly complete the task -- you may only provide suggestions and comments.
+
+      Your paired driver is working directly in the command line with a special interface.
+      You can also read the information returned by the interface when the driver is running commands.
+      But you cannot directly run commands.
+
+      Note that the environment does NOT support interactive session commands (e.g. python, vim).
+    instance_template: |-
+      We're currently solving the following issue within our repository. Here's the issue text:
+      ISSUE:
+      {{problem_statement}}
+
+      INSTRUCTIONS:
+      Now, you're going to provide help to your paired driver. The terminal session has started and your driver is in the repository's root directory.
+      Note however that any interactive session commands cannot be used (e.g. python, vim) in this environment, but the written scripts can be run. E.g. a python script can be run with the python command.
+
+      (Open file: {{open_file}})
+      (Current directory: {{working_dir}})
+      bash-$
+    next_step_template: |-
+      {{observation}}
+      (Open file: {{open_file}})
+      (Current directory: {{working_dir}})
+      bash-$
+    next_step_no_output_template: |-
+      Your command ran successfully and did not produce any output.
+      (Open file: {{open_file}})
+      (Current directory: {{working_dir}})
+      bash-$
+    demonstration_template: |
+      Here is a demonstration of how to correctly accomplish this task.
+      It is included to show you how the interface is used.
+      You do not need to follow exactly what is done in the demonstration.
+      --- DEMONSTRATION ---
+      {{demonstration}}
+      --- END OF DEMONSTRATION ---
+    demonstrations:
+      - trajectories/demonstrations/replay__marshmallow-code__marshmallow-1867__function_calling_replace__install-1/marshmallow-code__marshmallow-1867.traj
+    put_demos_in_history: true
+  # tools:
+  #   env_variables:
+  #     WINDOW: 100
+  #     OVERLAP: 2
+  #   bundles:
+  #     - path: tools/registry
+  #     - path: tools/defaults
+  #     - path: tools/search
+  #     # - path: tools/edit_linting
+  #     - path: tools/edit_replace
+  #     - path: tools/submit
+  #   enable_bash_tool: true
+  #   enable_handoff_tool: false
+  #   parse_function:
+  #     type: function_calling
+  history_processors:
+    - type: last_n_observations
+      n: 5

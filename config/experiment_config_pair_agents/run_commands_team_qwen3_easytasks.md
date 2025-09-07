@@ -1,53 +1,15 @@
 # Actual Run Commands for Experiment
 
-## baseline 
-```bash
-nohup sweagent run-batch-team \
-    --agent_config_paths config/experiment_config_pair_agents/azure_4o_baseline_driver.yaml \
-    --agent_config_paths config/experiment_config_pair_agents/azure_4o_baseline_navigator.yaml \
-    --config config/experiment_config_pair_agents/tasks/swebench_tasks_20tasks_2_level_equal.yaml \
-    --output_dir trajectories/experiment_team/4o_baseline \
-  > trajectories/experiment_team/4o_baseline.log 2>&1 &
-```
-### round 2 
-```bash
-nohup sweagent run-batch-team \
-    --agent_config_paths config/experiment_config_pair_agents/azure_4o_baseline_driver.yaml \
-    --agent_config_paths config/experiment_config_pair_agents/azure_4o_baseline_navigator.yaml \
-    --config config/experiment_config_pair_agents/tasks/swebench_tasks_20tasks_2_level_equal.yaml \
-    --output_dir trajectories/experiment_team/4o_baseline_round2 \
-  > trajectories/experiment_team/4o_baseline_round2.log 2>&1 &
-```
-
-## comprehensive role
-```bash
-nohup sweagent run-batch-team \
-    --agent_config_paths config/experiment_config_pair_agents/comprehensive_role/azure_4o_driver.yaml \
-    --agent_config_paths config/experiment_config_pair_agents/comprehensive_role/azure_4o_navigator.yaml \
-    --config config/experiment_config_pair_agents/tasks/swebench_tasks_20tasks_2_level_equal.yaml \
-    --output_dir trajectories/experiment_team/4o_comprehensive_role \
-  > trajectories/experiment_team/4o_comprehensive_role.log 2>&1 &
-```
-### round 2
-```bash
-nohup sweagent run-batch-team \
-    --agent_config_paths config/experiment_config_pair_agents/comprehensive_role/azure_4o_driver.yaml \
-    --agent_config_paths config/experiment_config_pair_agents/comprehensive_role/azure_4o_navigator.yaml \
-    --config config/experiment_config_pair_agents/tasks/swebench_tasks_20tasks_2_level_equal.yaml \
-    --output_dir trajectories/experiment_team/4o_comprehensive_role_round2 \
-  > trajectories/experiment_team/4o_comprehensive_role_round2.log 2>&1 &
-```
-
 ## with personality
 ### E, E 
 round 1 (finished)
 ```bash
 nohup sweagent run-batch-team \
-    --agent_config_paths config/experiment_config_pair_agents/personality_agents/Extraversion/azure_4o_driver_Ex.yaml \
-    --agent_config_paths config/experiment_config_pair_agents/personality_agents/Extraversion/azure_4o_navigator_Ex.yaml \
-    --config config/experiment_config_pair_agents/tasks/swebench_tasks_20tasks_2_level_equal.yaml \
-    --output_dir trajectories/experiment_team/4o_personality_EE \
-  > trajectories/experiment_team/4o_personality_EE.log 2>&1 &
+    --agent_config_paths config/experiment_config_pair_agents/personality_agents/Extraversion/qwen3coder_driver_Ex.yaml \
+    --agent_config_paths config/experiment_config_pair_agents/personality_agents/Extraversion/qwen3coder_navigator_Ex.yaml \
+    --config config/experiment_config_pair_agents/tasks/swebench_tasks_30easy_tasks.yaml \
+    --output_dir trajectories/experiment_team/qwen3coder_personality_EE \
+  > trajectories/experiment_team/qwen3coder_personality_EE.log 2>&1 &
 ```
 
 round 2 (finished)
