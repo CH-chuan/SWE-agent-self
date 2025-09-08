@@ -2,9 +2,9 @@
 
 # === CONFIGURATION ===
 
-TARGET_PID=417610
+TARGET_PID=307764
 
-INITIAL_SLEEP_SECONDS=$((30 * 60))  # Start with 20 minutes
+INITIAL_SLEEP_SECONDS=$((120 * 60))  # Start with 10 minutes
 MIN_SLEEP_SECONDS=$((2 * 60))                    # Don't go below 3 minutes
 DECAY_FACTOR=0.3
 
@@ -31,11 +31,11 @@ while true; do
         echo "[$(date)] Process $TARGET_PID has finished. Launching new command..."
 
         nohup sweagent run-batch-team \
-            --agent_config_paths config/experiment_config_pair_agents/personality_agents/Extraversion/azure_4o_driver_In.yaml \
-            --agent_config_paths config/experiment_config_pair_agents/personality_agents/Extraversion/azure_4o_navigator_In.yaml \
-            --config config/experiment_config_pair_agents/tasks/swebench_tasks_20tasks_2_level_equal.yaml \
-            --output_dir trajectories/experiment_team/4o_personality_II \
-        > trajectories/experiment_team/4o_personality_II.log 2>&1 &
+            --agent_config_paths config/experiment_config_pair_agents/personality_agents/Extraversion/sweagent_driver_In.yaml \
+            --agent_config_paths config/experiment_config_pair_agents/personality_agents/Extraversion/sweagent_navigator_In.yaml \
+            --config config/experiment_config_pair_agents/tasks/swebench_tasks_30easy_tasks.yaml \
+            --output_dir trajectories/experiment_team/sweagent32b_personality_II \
+        > trajectories/experiment_team/sweagent32b_personality_II.log 2>&1 &
 
         NEW_PID=$!
         echo "New process started with PID $NEW_PID"
