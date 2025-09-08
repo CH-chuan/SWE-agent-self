@@ -613,49 +613,58 @@ class LiteLLMModel(AbstractModel):
         """
         import re
         
-        # Pattern to match tool calls with parameters
-        pattern_with_params = r'<tool_call>\s*<function=([^>]+)>\s*<parameter=([^>]+)>\s*([^<]*?)\s*</parameter>\s*</function>\s*</tool_call>'
-        
-        # Pattern to match tool calls without parameters
-        pattern_no_params = r'<tool_call>\s*<function=([^>]+)>\s*</function>\s*</tool_call>'
-        
-        tool_calls = []
-        
-        # First, try to match tool calls with parameters
-        matches_with_params = re.findall(pattern_with_params, content, re.DOTALL)
-        for match in matches_with_params:
-            function_name = match[0].strip()
-            param_name = match[1].strip()
-            param_value = match[2].strip()
+        # Helper function to parse parameters from function content
+        def parse_parameters(function_content):
+            """Parse parameters from function content."""
+            if not function_content.strip():
+                return {}
             
-            # Create tool call in the format expected by FunctionCallingParser
-            tool_call = {
-                "id": f"call_{len(tool_calls)}",
+            # Look for parameter patterns
+            param_pattern = r'<parameter=([^>]+)>(.*?)</parameter>'
+            matches = re.findall(param_pattern, function_content, re.DOTALL)
+            
+            params = {}
+            for param_name, param_value in matches:
+                params[param_name.strip()] = param_value.strip()
+            
+            return params
+        
+        # Helper function to create tool call
+        def create_tool_call(function_name, parameters=None):
+            if parameters is None:
+                parameters = {}
+            
+            return {
+                "id": "call_0",
                 "type": "function",
                 "function": {
                     "name": function_name,
-                    "arguments": json.dumps({param_name: param_value})
+                    "arguments": json.dumps(parameters)
                 }
             }
-            tool_calls.append(tool_call)
         
-        # Then, try to match tool calls without parameters
-        matches_no_params = re.findall(pattern_no_params, content, re.DOTALL)
-        for match in matches_no_params:
-            function_name = match.strip()
+        # Step 1: Try to find complete <tool_call> wrapper format
+        tool_call_match = re.search(r'<tool_call>(.*?)</tool_call>', content, re.DOTALL)
+        if tool_call_match:
+            tool_call_content = tool_call_match.group(1)
             
-            # Create tool call in the format expected by FunctionCallingParser
-            tool_call = {
-                "id": f"call_{len(tool_calls)}",
-                "type": "function",
-                "function": {
-                    "name": function_name,
-                    "arguments": "{}"
-                }
-            }
-            tool_calls.append(tool_call)
+            # Extract function name and content
+            function_match = re.search(r'<function=([^>]+)>(.*?)</function>', tool_call_content, re.DOTALL)
+            if function_match:
+                function_name = function_match.group(1).strip()
+                function_content = function_match.group(2).strip()
+                parameters = parse_parameters(function_content)
+                return [create_tool_call(function_name, parameters)]
         
-        return tool_calls if tool_calls else None
+        # Step 2: If no <tool_call> wrapper, try simplified <function> format
+        function_match = re.search(r'<function=([^>]+)>(.*?)</function>', content, re.DOTALL)
+        if function_match:
+            function_name = function_match.group(1).strip()
+            function_content = function_match.group(2).strip()
+            parameters = parse_parameters(function_content)
+            return [create_tool_call(function_name, parameters)]
+        
+        return None
 
     @property
     def instance_cost_limit(self) -> float:
@@ -806,7 +815,10 @@ class LiteLLMModel(AbstractModel):
                     tool_calls = []
                 
                 # Special handling for Qwen3 models that use <tool_call> format
-                if "qwen3" in self.config.name.lower() and not tool_calls:
+                # print("@"*100)
+                # print(f"self.config.name: {self.config.name}")
+                if ("qwen3" in self.config.name.lower() or "swe-agent-lm" in self.config.name.lower()) and not tool_calls:
+                    print("@"*100)
                     parsed_tool_calls = self._parse_qwen3_tool_calls(output)
                     if parsed_tool_calls:
                         tool_calls = parsed_tool_calls
