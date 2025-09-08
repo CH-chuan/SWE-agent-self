@@ -595,7 +595,8 @@ class LiteLLMModel(AbstractModel):
     def _parse_qwen3_tool_calls(self, content: str) -> list[dict] | None:
         """Parse Qwen3 tool calls from content that uses <tool_call> format.
         
-        Expected format:
+        Expected formats:
+        1. With parameters:
         <tool_call>
         <function=function_name>
         <parameter=param_name>
@@ -603,18 +604,26 @@ class LiteLLMModel(AbstractModel):
         </parameter>
         </function>
         </tool_call>
+        
+        2. Without parameters:
+        <tool_call>
+        <function=function_name>
+        </function>
+        </tool_call>
         """
         import re
         
-        # Pattern to match the tool call format
-        pattern = r'<tool_call>\s*<function=([^>]+)>\s*<parameter=([^>]+)>\s*([^<]*?)\s*</parameter>\s*</function>\s*</tool_call>'
+        # Pattern to match tool calls with parameters
+        pattern_with_params = r'<tool_call>\s*<function=([^>]+)>\s*<parameter=([^>]+)>\s*([^<]*?)\s*</parameter>\s*</function>\s*</tool_call>'
         
-        matches = re.findall(pattern, content, re.DOTALL)
-        if not matches:
-            return None
+        # Pattern to match tool calls without parameters
+        pattern_no_params = r'<tool_call>\s*<function=([^>]+)>\s*</function>\s*</tool_call>'
         
         tool_calls = []
-        for match in matches:
+        
+        # First, try to match tool calls with parameters
+        matches_with_params = re.findall(pattern_with_params, content, re.DOTALL)
+        for match in matches_with_params:
             function_name = match[0].strip()
             param_name = match[1].strip()
             param_value = match[2].strip()
@@ -630,7 +639,23 @@ class LiteLLMModel(AbstractModel):
             }
             tool_calls.append(tool_call)
         
-        return tool_calls
+        # Then, try to match tool calls without parameters
+        matches_no_params = re.findall(pattern_no_params, content, re.DOTALL)
+        for match in matches_no_params:
+            function_name = match.strip()
+            
+            # Create tool call in the format expected by FunctionCallingParser
+            tool_call = {
+                "id": f"call_{len(tool_calls)}",
+                "type": "function",
+                "function": {
+                    "name": function_name,
+                    "arguments": "{}"
+                }
+            }
+            tool_calls.append(tool_call)
+        
+        return tool_calls if tool_calls else None
 
     @property
     def instance_cost_limit(self) -> float:
