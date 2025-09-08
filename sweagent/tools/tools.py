@@ -13,7 +13,7 @@ from typing_extensions import Self
 from sweagent.environment.swe_env import SWEEnv
 from sweagent.tools.bundle import Bundle
 from sweagent.tools.commands import BASH_COMMAND, HANDOFF_COMMAND, ASK_QUESTION_COMMAND, Command
-from sweagent.tools.parsing import FunctionCallingParser, JsonParser, ParseFunction
+from sweagent.tools.parsing import FunctionCallingParser, JsonParser, ParseFunction, SimpleJsonParser
 from sweagent.tools.utils import _guard_multiline_input, generate_command_docs
 from sweagent.utils.log import get_logger
 
@@ -167,21 +167,27 @@ class ToolConfig(BaseModel):
 
         # Validate that tool disabling only happens with supported parsers
         if not self.enable_bash_tool and not (
-            isinstance(self.parse_function, FunctionCallingParser) or isinstance(self.parse_function, JsonParser)
+            isinstance(self.parse_function, FunctionCallingParser) or 
+            isinstance(self.parse_function, JsonParser) or 
+            isinstance(self.parse_function, SimpleJsonParser)
         ):
-            msg = f"Bash tool can only be disabled if {FunctionCallingParser.type} parser or {JsonParser.type} parser is used."
+            msg = f"Bash tool can only be disabled if {FunctionCallingParser().type} parser, {JsonParser().type} parser, or {SimpleJsonParser().type} parser is used."
             raise ValueError(msg)
             
         if not self.enable_handoff_tool and not (
-            isinstance(self.parse_function, FunctionCallingParser) or isinstance(self.parse_function, JsonParser)
+            isinstance(self.parse_function, FunctionCallingParser) or 
+            isinstance(self.parse_function, JsonParser) or 
+            isinstance(self.parse_function, SimpleJsonParser)
         ):
-            msg = f"Handoff tool can only be disabled if {FunctionCallingParser.type} parser or {JsonParser.type} parser is used."
+            msg = f"Handoff tool can only be disabled if {FunctionCallingParser().type} parser, {JsonParser().type} parser, or {SimpleJsonParser().type} parser is used."
             raise ValueError(msg)
             
         if not self.enable_ask_question_tool and not (
-            isinstance(self.parse_function, FunctionCallingParser) or isinstance(self.parse_function, JsonParser)
+            isinstance(self.parse_function, FunctionCallingParser) or 
+            isinstance(self.parse_function, JsonParser) or 
+            isinstance(self.parse_function, SimpleJsonParser)
         ):
-            msg = f"Ask question tool can only be disabled if {FunctionCallingParser.type} parser or {JsonParser.type} parser is used."
+            msg = f"Ask question tool can only be disabled if {FunctionCallingParser().type} parser, {JsonParser().type} parser, or {SimpleJsonParser().type} parser is used."
             raise ValueError(msg)
 
         self.multi_line_command_endings = multi_line_command_endings

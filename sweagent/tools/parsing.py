@@ -31,10 +31,10 @@ import textwrap
 from abc import ABC, abstractmethod
 from shlex import quote
 from textwrap import dedent
-from typing import Literal
+from typing import Annotated, Literal
 
 from jinja2 import Template
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from sweagent.exceptions import FormatError, FunctionCallingFormatError
 from sweagent.tools.commands import Command
@@ -344,6 +344,127 @@ class FunctionCallingParser(AbstractParseFunction, BaseModel):
         return message, action
 
 
+class SimpleJsonParser(AbstractParseFunction, BaseModel):
+    """Expects the model response to be a simple JSON object with name and arguments fields.
+    
+    Example:
+    {"name": "search_dir", "arguments": {"search_term": "ASCIIUsernameValidator", "dir": "/testbed"}}
+    """
+
+    error_message: str = dedent("""\
+    Your output could not be parsed as JSON. Please make sure your output 1) is valid JSON and
+    2) Includes the "name" and "arguments" fields.
+
+    """)
+
+    type: Literal["simple_json"] = "simple_json"
+    """Type for (de)serialization. Do not change."""
+
+    def __call__(self, model_response: dict, commands: list[Command], strict=False):
+        """Parses the action from the output of the API call.
+        We assume that model output is a JSON object with the following fields:
+        {
+            "name": "command_name",
+            "arguments": {
+                "arg1": "value1",
+                "arg2": "value2",
+                ...
+            }
+        }
+        
+        The JSON can be either directly in the message or wrapped in ```json``` code blocks.
+        """
+        message = model_response["message"]
+        
+        # Try to extract JSON from code blocks first
+        json_match = re.search(r'```json\s*\n(.*?)\n```', message, re.DOTALL)
+        if json_match:
+            json_str = json_match.group(1).strip()
+            # Extract thought as everything before the JSON code block
+            thought = message[:json_match.start()].strip()
+        else:
+            # Try to find JSON object in the message by looking for complete JSON objects
+            json_str = None
+            thought = ""
+            
+            # Look for JSON objects by finding balanced braces
+            brace_count = 0
+            start_pos = -1
+            
+            for i, char in enumerate(message):
+                if char == '{':
+                    if brace_count == 0:
+                        start_pos = i
+                    brace_count += 1
+                elif char == '}':
+                    brace_count -= 1
+                    if brace_count == 0 and start_pos != -1:
+                        # Found a complete JSON object
+                        potential_json = message[start_pos:i+1]
+                        try:
+                            # Try to parse it as JSON to validate it's complete
+                            data = json.loads(potential_json)
+                            # Check if it has the required "name" field
+                            if isinstance(data, dict) and "name" in data:
+                                json_str = potential_json.strip()
+                                thought = message[:start_pos].strip()
+                                break
+                        except json.JSONDecodeError:
+                            continue
+            
+            # If no valid JSON found, try to parse the entire message as JSON
+            if json_str is None:
+                json_str = message.strip()
+                thought = ""
+        
+        try:
+            data = json.loads(json_str)
+            if not isinstance(data, dict):
+                msg = "Model output is not a JSON object."
+                raise FormatError(msg)
+
+            # Check if required keys are present
+            required_keys = ["name"]
+            for key in required_keys:
+                if key not in data:
+                    msg = f"Key '{key}' is missing from model output."
+                    raise FormatError(msg)
+
+            command_name = data["name"]
+            command_args = data.get("arguments", {})
+            
+            commands_dict = {c.name: c for c in commands}
+            command = commands_dict.get(command_name)
+
+            # Handle command parsing based on strict mode
+            if command is None:
+                if strict:
+                    msg = f"Command '{command_name}' not found in list of available commands."
+                    raise FormatError(msg)
+                # In non-strict mode, just join command name with argument values
+                return thought, " ".join([command_name, *command_args.values()])
+
+            # Format arguments using their individual argument_format
+            formatted_args = {}
+            if command.arguments:
+                for arg in command.arguments:
+                    if arg.name in command_args:
+                        value = command_args[arg.name]
+                        if _should_quote(value, command):
+                            value = quote(value)
+                        formatted_args[arg.name] = Template(arg.argument_format).render(value=value)
+                    elif strict and arg.required:
+                        msg = f"Required argument '{arg.name}' missing for command '{command.name}'"
+                        raise FormatError(msg)
+
+            # Use the formatted arguments with invoke_format
+            action = command.invoke_format.format(**formatted_args).strip()
+            return thought, action
+        except json.JSONDecodeError:
+            msg = "Model output is not valid JSON."
+            raise FormatError(msg)
+
+
 class JsonParser(AbstractParseFunction, BaseModel):
     """Expects the model response to be a JSON object."""
 
@@ -430,7 +551,7 @@ class JsonParser(AbstractParseFunction, BaseModel):
             raise FormatError(msg)
 
 
-ParseFunction = (
+ParseFunction = Annotated[
     ActionParser
     | ThoughtActionParser
     | ActionOnlyParser
@@ -439,4 +560,6 @@ ParseFunction = (
     | EditFormat
     | Identity
     | JsonParser
-)
+    | SimpleJsonParser,
+    Field(discriminator="type"),
+]
