@@ -5,7 +5,7 @@ agent:
   not_using_tools: false
   model:
     name: litellm_proxy/hosted_vllm/SWE-agent-LM-32B
-    api_base: https://c4b234734039.ngrok-free.app/v1
+    api_base: $litellm_proxy_API_BASE
     api_key: $litellm_proxy_API_KEY
     per_instance_cost_limit: 0
     per_instance_call_limit: 80
