@@ -5,13 +5,13 @@ agent:
   not_using_tools: false
   model:
     name: litellm_proxy/hosted_vllm/SWE-agent-LM-32B
-    api_base: https://0f32673cacff.ngrok-free.app/v1
+    api_base: https://c4b234734039.ngrok-free.app/v1
     api_key: $litellm_proxy_API_KEY
     per_instance_cost_limit: 0
-    per_instance_call_limit: 40
+    per_instance_call_limit: 80
     temperature: 0.7
     # completion_kwargs:
-    #   max_tokens: 64000 # due to azure, it should lower than your per minute token rate limit
+    #   max_tokens: 32768 # due to azure, it should lower than your per minute token rate limit
     retry:
       retries: 5
       min_wait: 60
@@ -33,24 +33,12 @@ agent:
       Generally, you are supposed to first think about what to do, and then use the tools to complete the task.
       YOU SHOULD INCLUDE ONE AND ONLY ONE TOOL CALL IN YOUR RESPONSE.
       
-      When you need to use tools, format your response as follows:
-
+      When you need to use tools, format your tool call as follows:
       <tool_call>
       <function=function_name>
       <parameter=param_name>param_value</parameter>
       </function>
       </tool_call>
-
-      Example:
-      I'll help you find the relevant files in the repository.
-
-      <tool_call>
-      <function=find>
-      <parameter=pattern>*Validator*</parameter>
-      <parameter=type>f</parameter>
-      </function>
-      </tool_call>
-
     instance_template: |-
       <uploaded_files>
       {{working_dir}}
@@ -93,4 +81,4 @@ agent:
       type: function_calling
   history_processors:
     - type: last_n_observations
-      n: 5
+      n: 2

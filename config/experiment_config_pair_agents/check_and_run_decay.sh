@@ -2,7 +2,7 @@
 
 # === CONFIGURATION ===
 
-TARGET_PID=307764
+TARGET_PID=510025
 
 INITIAL_SLEEP_SECONDS=$((120 * 60))  # Start with 10 minutes
 MIN_SLEEP_SECONDS=$((2 * 60))                    # Don't go below 3 minutes

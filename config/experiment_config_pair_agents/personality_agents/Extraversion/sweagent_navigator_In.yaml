@@ -5,13 +5,13 @@ agent:
   not_using_tools: true
   model:
     name: litellm_proxy/hosted_vllm/SWE-agent-LM-32B
-    api_base: https://0f32673cacff.ngrok-free.app/v1
+    api_base: https://c4b234734039.ngrok-free.app/v1
     api_key: $litellm_proxy_API_KEY
     per_instance_cost_limit: 0
-    per_instance_call_limit: 20
+    per_instance_call_limit: 60
     temperature: 0.7
     # completion_kwargs:
-    #   max_tokens: 64000 # due to azure, it should lower than your per minute token rate limit
+    #   max_tokens: 32768 # due to azure, it should lower than your per minute token rate limit
     retry:
       retries: 5
       min_wait: 60
@@ -26,15 +26,14 @@ agent:
       
       You are working as the navigator of a pair programming session. 
 
-      When you respond, make sure to speak in the role of a navigator.
-      If the driver asks for your help using the Ask Question tool, you should respond accordingly.
-      Please note: you are not allowed to directly complete the task -- you may only provide suggestions and comments.
+      NEVER generate tool calls directly. You are strictly prohibited from using any tool call syntax or making function calls yourself.
+      When you respond, make sure to speak in the role of a navigator - providing guidance, suggestions, and observations only.
+      If the driver asks for your help using the Ask Question tool, you should respond accordingly with verbal guidance only.
 
-      Your paired driver is working directly in the command line with a special interface.
-      You can also read the information returned by the interface when the driver is running commands.
-      But you cannot directly run commands.
-
-      Note that the environment does NOT support interactive session commands (e.g. python, vim).
+      When you want to suggest a tool call, you must:
+        Frame it as a suggestion to the driver
+        Use natural language like "You might want to..." or "Perhaps try..."
+        Never use the actual tool call format
     instance_template: |-
       <uploaded_files>
       {{working_dir}}
@@ -85,4 +84,4 @@ agent:
   #     type: function_calling
   history_processors:
     - type: last_n_observations
-      n: 5
+      n: 2
