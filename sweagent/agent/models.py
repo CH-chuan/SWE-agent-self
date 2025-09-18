@@ -815,10 +815,7 @@ class LiteLLMModel(AbstractModel):
                     tool_calls = []
                 
                 # Special handling for Qwen3 models that use <tool_call> format
-                # print("@"*100)
-                # print(f"self.config.name: {self.config.name}")
                 if ("qwen3" in self.config.name.lower() or "swe-agent-lm" in self.config.name.lower()) and not tool_calls:
-                    print("@"*100)
                     parsed_tool_calls = self._parse_qwen3_tool_calls(output)
                     if parsed_tool_calls:
                         tool_calls = parsed_tool_calls

@@ -2,7 +2,7 @@
 
 # === CONFIGURATION ===
 
-TARGET_PID=510025
+TARGET_PID=20122
 
 INITIAL_SLEEP_SECONDS=$((120 * 60))  # Start with 10 minutes
 MIN_SLEEP_SECONDS=$((2 * 60))                    # Don't go below 3 minutes
@@ -31,11 +31,11 @@ while true; do
         echo "[$(date)] Process $TARGET_PID has finished. Launching new command..."
 
         nohup sweagent run-batch-team \
-            --agent_config_paths config/experiment_config_pair_agents/personality_agents/Extraversion/sweagent_driver_In.yaml \
-            --agent_config_paths config/experiment_config_pair_agents/personality_agents/Extraversion/sweagent_navigator_In.yaml \
+            --agent_config_paths config/experiment_config_pair_agents/personality_agents/Extraversion/sweagent_driver_Ex.yaml \
+            --agent_config_paths config/experiment_config_pair_agents/personality_agents/Extraversion/sweagent_navigator_Ex.yaml \
             --config config/experiment_config_pair_agents/tasks/swebench_tasks_30easy_tasks.yaml \
-            --output_dir trajectories/experiment_team/sweagent32b_personality_II \
-        > trajectories/experiment_team/sweagent32b_personality_II.log 2>&1 &
+            --output_dir trajectories/experiment_team_sweagent/sweagent32b_personality_EE \
+        > trajectories/experiment_team_sweagent/sweagent32b_personality_EE.log 2>&1 &
 
         NEW_PID=$!
         echo "New process started with PID $NEW_PID"
