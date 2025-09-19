@@ -625,7 +625,20 @@ class LiteLLMModel(AbstractModel):
             
             params = {}
             for param_name, param_value in matches:
-                params[param_name.strip()] = param_value.strip()
+                param_name = param_name.strip()
+                param_value = param_value.strip()
+                
+                # Try to parse array-like values (e.g., [1, 10])
+                if param_value.startswith('[') and param_value.endswith(']'):
+                    try:
+                        # Parse as JSON array
+                        import json
+                        params[param_name] = json.loads(param_value)
+                    except (json.JSONDecodeError, ValueError):
+                        # If JSON parsing fails, keep as string
+                        params[param_name] = param_value
+                else:
+                    params[param_name] = param_value
             
             return params
         
