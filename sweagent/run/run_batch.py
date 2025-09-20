@@ -228,7 +228,7 @@ class RunBatch:
                     output_dir=config.output_dir,
                     subset=config.instances.subset,
                     split=config.instances.split,
-                    continuous_submission_every=30,
+                    continuous_submission_every=600,
                 )
             )
         return rb

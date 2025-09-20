@@ -257,7 +257,7 @@ class RunBatchTeam(RunBatch):
                     output_dir=output_dir,
                     subset=config.instances.subset,
                     split=config.instances.split,
-                    continuous_submission_every=30,
+                    continuous_submission_every=600,
                 )
             )
             logger.info("Added SWE-bench evaluation hook")
